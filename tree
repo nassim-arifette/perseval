@@ -1,0 +1,26 @@
+SearchEval/
+├── app/
+│   ├── __init__.py
+│   ├── main.py                    # FastAPI app entry point
+│   ├── config.py                  # Settings (e.g., API keys, DB URL)
+│   ├── database.py                # Database setup (SQLAlchemy)
+│   ├── models.py                  # Pydantic models and DB models
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── analysis.py            # Endpoints for content analysis (e.g., /analyze)
+│   │   └── transcription.py       # Endpoints for video transcription (e.g., /transcribe)
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── llm_service.py         # LLM logic (scoring, transcription)
+│   │   ├── api_service.py         # External API calls (e.g., YouTube, Instagram)
+│   │   └── validation_service.py  # Business logic for validity checks (profiles, history)
+│   ├── dependencies.py            # Shared dependencies (e.g., DB session)
+│   └── utils.py                   # Helper functions (e.g., URL parsing)
+├── tests/
+│   ├── __init__.py
+│   ├── test_analysis.py           # Unit tests for analysis endpoints
+│   └── test_transcription.py      # Unit tests for transcription
+├── requirements.txt               # Python dependencies
+├── .env                           # Environment variables (API keys; add to .gitignore)
+├── README.md                      # Project documentation
+└── run.py                         # Script to run the app (optional)

@@ -1,0 +1,11 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+sqlalchemy==2.0.23
+alembic==1.12.1  # For DB migrations
+pydantic==2.5.0
+python-multipart==0.0.6  # For file uploads if needed
+httpx==0.25.2  # For API calls
+openai==1.3.5  # For LLM and Whisper
+python-dotenv==1.0.0  # For .env
+pytest==7.4.3  # For testing
+elevenlabs
