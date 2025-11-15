@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.env
+
+# FastAPI / build artifacts
+backend/.mypy_cache/
+backend/.pytest_cache/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/.vercel/
+frontend/npm-debug.log*
+frontend/.env.local
+frontend/.env.*
+
+# OS junk
+.DS_Store
+Thumbs.db
