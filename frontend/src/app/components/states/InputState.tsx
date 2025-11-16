@@ -9,7 +9,11 @@ type InputStateProps = {
   charCountCopy: string;
   canSubmit: boolean;
   loading: boolean;
+  instagramUrl: string;
+  influencerHandle: string;
   onTextChange: (value: string) => void;
+  onInstagramUrlChange: (value: string) => void;
+  onInfluencerHandleChange: (value: string) => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: () => void;
   onExample: () => void;
@@ -22,7 +26,11 @@ export function InputState({
   charCountCopy,
   canSubmit,
   loading,
+  instagramUrl,
+  influencerHandle,
   onTextChange,
+  onInstagramUrlChange,
+  onInfluencerHandleChange,
   onKeyDown,
   onSubmit,
   onExample,
@@ -52,6 +60,34 @@ export function InputState({
         <div className={`mt-2 flex items-center justify-between text-xs ${themeTokens.muted}`}>
           <span>{charCountCopy}</span>
           <span>Cmd/Ctrl + Enter</span>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Instagram URL (optional)</p>
+          <input
+            type="url"
+            placeholder="https://www.instagram.com/p/..."
+            value={instagramUrl}
+            disabled={loading}
+            onChange={(event) => onInstagramUrlChange(event.target.value)}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+          />
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Influencer handle (optional)</p>
+          <input
+            type="text"
+            placeholder="@handle"
+            value={influencerHandle}
+            disabled={loading}
+            onChange={(event) => onInfluencerHandleChange(event.target.value)}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+          />
+          <p className={`text-[0.7rem] ${themeTokens.muted}`}>
+            Leave blank to auto-use the owner of the Instagram URL (when provided).
+          </p>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import type { RiskTier, Severity, ThemeKey } from "./types";
 
-export const ANALYZE_ENDPOINT = "/api/analyze";
+export const ANALYZE_ENDPOINT = "/api/analyze/full";
 export const MAX_CHARACTERS = 1200;
 
 export const sampleMessages = [

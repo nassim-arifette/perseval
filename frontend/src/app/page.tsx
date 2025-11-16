@@ -15,15 +15,22 @@ import {
   sampleMessages,
   themeConfig,
 } from "./lib/constants";
-import type { HighlightSegment, ReasonBullet, ScamPrediction } from "./lib/types";
+import type {
+  FullAnalysisResponse,
+  HighlightSegment,
+  ReasonBullet,
+  ScamPrediction,
+} from "./lib/types";
 import { buildReasonBullets, clampPercent, deriveRiskTier, highlightText } from "./lib/risk";
 
 type CardState = "input" | "analyzing" | "result";
 
 export default function Home() {
   const [text, setText] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [influencerHandle, setInfluencerHandle] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ScamPrediction | null>(null);
+  const [result, setResult] = useState<FullAnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -31,33 +38,36 @@ export default function Home() {
   const charactersUsed = text.length;
   const charCountCopy = `${charactersUsed} / ${MAX_CHARACTERS}`;
   const cardState: CardState = loading ? "analyzing" : result ? "result" : "input";
-  const canSubmit = Boolean(text.trim()) && !loading;
-  const riskTier = deriveRiskTier(result?.label);
+  const messagePrediction: ScamPrediction | null = result?.message_prediction ?? null;
+  const canSubmit =
+    !loading && (Boolean(text.trim()) || Boolean(instagramUrl.trim()));
+  const riskTier = deriveRiskTier(messagePrediction?.label);
   const activeRisk = riskStyles[riskTier];
-  const previewSource = (result?.raw_post_text ?? text).trim();
+  const previewSource = (messagePrediction?.raw_post_text ?? text).trim();
   const previewSnippet = previewSource
     ? previewSource.length > 200
       ? `${previewSource.slice(0, 200)}...`
       : previewSource
     : "No message has been provided yet.";
-  const scorePercent = result ? clampPercent(result.score) : null;
+  const scorePercent = messagePrediction ? clampPercent(messagePrediction.score) : null;
   const cardSurfaceClass =
     cardState === "result"
       ? activeRisk.cardTone
       : `${themeTokens.surfaceBorder} ${themeTokens.surfaceBg}`;
 
   const reasonBullets = useMemo<ReasonBullet[]>(
-    () => buildReasonBullets(result?.reason ?? "", result?.label ?? null),
-    [result?.label, result?.reason]
+    () => buildReasonBullets(messagePrediction?.reason ?? "", messagePrediction?.label ?? null),
+    [messagePrediction?.label, messagePrediction?.reason]
   );
 
   const highlightedMessage = useMemo<HighlightSegment[]>(
-    () => (result?.raw_post_text ? highlightText(result.raw_post_text) : []),
-    [result?.raw_post_text]
+    () => (messagePrediction?.raw_post_text ? highlightText(messagePrediction.raw_post_text) : []),
+    [messagePrediction?.raw_post_text]
   );
 
   async function handleAnalyze() {
-    if (!text.trim()) {
+    if (!text.trim() && !instagramUrl.trim()) {
+      setError("Paste message text or provide an Instagram URL to analyze.");
       return;
     }
 
@@ -71,7 +81,11 @@ export default function Home() {
       const response = await fetch(ANALYZE_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text: text.trim() || undefined,
+          instagram_url: instagramUrl.trim() || undefined,
+          influencer_handle: influencerHandle.trim() || undefined,
+        }),
         signal: controller.signal,
       });
 
@@ -80,7 +94,7 @@ export default function Home() {
         throw new Error(errBody?.detail ?? "Backend error");
       }
 
-      const data: ScamPrediction = await response.json();
+      const data: FullAnalysisResponse = await response.json();
       setResult(data);
     } catch (err: any) {
       if (err?.name === "AbortError") {
@@ -105,6 +119,8 @@ export default function Home() {
 
   function handleClear() {
     setText("");
+    setInstagramUrl("");
+    setInfluencerHandle("");
     setResult(null);
     setError(null);
   }
@@ -124,7 +140,7 @@ export default function Home() {
     setResult(null);
   }
 
-  const buttonLabel = loading ? "Analyzing..." : "Analyze message";
+  const buttonLabel = loading ? "Analyzing..." : "Analyze";
 
   const backgroundClass =
     cardState === "result" ? `bg-gradient-to-br ${riskBackdrop[riskTier]}` : themeTokens.body;
@@ -134,10 +150,14 @@ export default function Home() {
     cardContent = (
       <InputState
         text={text}
+        instagramUrl={instagramUrl}
+        influencerHandle={influencerHandle}
         charCountCopy={charCountCopy}
         canSubmit={canSubmit}
         loading={loading}
         onTextChange={setText}
+        onInstagramUrlChange={setInstagramUrl}
+        onInfluencerHandleChange={setInfluencerHandle}
         onKeyDown={handleTextareaKeyDown}
         onSubmit={handleAnalyze}
         onExample={handleExampleInsert}
@@ -153,9 +173,10 @@ export default function Home() {
         onEdit={handleEditDuringAnalysis}
       />
     );
-  } else if (cardState === "result" && result) {
+  } else if (cardState === "result" && result && messagePrediction) {
     cardContent = (
       <ResultState
+        fullResult={result}
         previewSnippet={previewSnippet}
         reasonBullets={reasonBullets}
         highlightedMessage={highlightedMessage}
@@ -173,7 +194,7 @@ export default function Home() {
         <HeaderBar headerBorderClass={themeTokens.headerBorder} />
 
         <main className="flex flex-1 items-center justify-center py-8">
-          <div className={`w-full max-w-2xl rounded-[32px] border ${cardSurfaceClass} ${themeTokens.cardShadow} p-8`}>
+          <div className={`w-full max-w-3xl rounded-[32px] border ${cardSurfaceClass} ${themeTokens.cardShadow} p-8`}>
             <div key={cardState} className="fade-card">
               {cardContent}
             </div>

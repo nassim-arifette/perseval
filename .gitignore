@@ -19,3 +19,6 @@ frontend/.env.*
 # OS junk
 .DS_Store
 Thumbs.db
+
+export_project_snapshot.py
+project_snapshot.txt
