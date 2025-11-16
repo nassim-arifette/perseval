@@ -1,6 +1,6 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 
 import { MAX_CHARACTERS, type ThemeTokens } from "../../lib/constants";
 
@@ -45,6 +45,8 @@ export function InputState({
   buttonLabel,
   themeTokens,
 }: InputStateProps) {
+  const [showOptions, setShowOptions] = useState(false);
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -62,7 +64,7 @@ export function InputState({
           disabled={loading}
           onChange={(event) => onTextChange(event.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Paste the message, DM or caption..."
+          placeholder="Paste the message, caption, or drop a single Instagram link (auto-detected)..."
           className={`w-full rounded-2xl border px-4 py-4 text-base leading-relaxed outline-none transition focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder} ${themeTokens.placeholder}`}
         />
         <div className={`mt-2 flex items-center justify-between text-xs ${themeTokens.muted}`}>
@@ -74,63 +76,77 @@ export function InputState({
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Instagram URL (optional)</p>
-          <input
-            type="url"
-            placeholder="https://www.instagram.com/p/..."
-            value={instagramUrl}
-            disabled={loading}
-            onChange={(event) => onInstagramUrlChange(event.target.value)}
-            className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
-          />
-        </div>
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Influencer handle (optional)</p>
-          <input
-            type="text"
-            placeholder="@handle"
-            value={influencerHandle}
-            disabled={loading}
-            onChange={(event) => onInfluencerHandleChange(event.target.value)}
-            className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
-          />
-          <p className={`text-[0.7rem] ${themeTokens.muted}`}>
-            Leave blank to auto-use the owner of the Instagram URL (when provided).
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Company name (optional)</p>
-          <input
-            type="text"
-            placeholder="Brand or organization..."
-            value={companyName}
-            disabled={loading}
-            onChange={(event) => onCompanyNameChange(event.target.value)}
-            className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
-          />
-          <p className={`text-[0.7rem] ${themeTokens.muted}`}>
-            Pinpointing the brand improves the company reputation lookup.
-          </p>
-        </div>
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Product name (optional)</p>
-          <input
-            type="text"
-            placeholder="Product or offer mentioned..."
-            value={productName}
-            disabled={loading}
-            onChange={(event) => onProductNameChange(event.target.value)}
-            className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
-          />
-          <p className={`text-[0.7rem] ${themeTokens.muted}`}>
-            This helps the product reliability check find exact results.
-          </p>
-        </div>
+      <div className={`rounded-2xl border ${themeTokens.surfaceBorder} ${themeTokens.inputBg} px-4 py-4`}>
+        <button
+          type="button"
+          onClick={() => setShowOptions((prev) => !prev)}
+          className="flex w-full items-center justify-between text-left text-sm font-semibold text-[#EA580C]"
+          aria-expanded={showOptions}
+        >
+          Additional details (optional)
+          <span>{showOptions ? "-" : "+"}</span>
+        </button>
+        {showOptions && (
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Instagram URL</p>
+                <input
+                  type="url"
+                  placeholder="https://www.instagram.com/p/..."
+                  value={instagramUrl}
+                  disabled={loading}
+                  onChange={(event) => onInstagramUrlChange(event.target.value)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Influencer handle</p>
+                <input
+                  type="text"
+                  placeholder="@handle"
+                  value={influencerHandle}
+                  disabled={loading}
+                  onChange={(event) => onInfluencerHandleChange(event.target.value)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+                />
+                <p className={`text-[0.7rem] ${themeTokens.muted}`}>
+                  Leave blank to auto-use the owner of the Instagram URL (when provided).
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Company name</p>
+                <input
+                  type="text"
+                  placeholder="Brand or organization..."
+                  value={companyName}
+                  disabled={loading}
+                  onChange={(event) => onCompanyNameChange(event.target.value)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+                />
+                <p className={`text-[0.7rem] ${themeTokens.muted}`}>
+                  Pinpointing the brand improves the company reputation lookup.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Product name</p>
+                <input
+                  type="text"
+                  placeholder="Product or offer mentioned..."
+                  value={productName}
+                  disabled={loading}
+                  onChange={(event) => onProductNameChange(event.target.value)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+                />
+                <p className={`text-[0.7rem] ${themeTokens.muted}`}>
+                  This helps the product reliability check find exact results.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">

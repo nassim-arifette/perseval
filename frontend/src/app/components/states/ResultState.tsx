@@ -31,12 +31,21 @@ export function ResultState({
   onClear,
 }: ResultStateProps) {
   const [showHighlights, setShowHighlights] = useState(false);
+  const [showReasons, setShowReasons] = useState(false);
+  const [expandedTrustSection, setExpandedTrustSection] =
+    useState<"influencer" | "company" | "product" | null>(null);
   const influencerStats = fullResult.influencer_trust?.stats;
   const influencerFullName = influencerStats?.full_name?.trim() || null;
   const influencerHandleCopy = formatHandle(influencerStats?.handle);
   const detectedInstagramOwner = formatHandle(fullResult.source_details.instagram_owner);
   const influencerDisplayName = influencerFullName || influencerHandleCopy || detectedInstagramOwner;
   const showInfluencerCard = Boolean(fullResult.influencer_trust || detectedInstagramOwner);
+  const toggleTrustSection = (section: "influencer" | "company" | "product") => {
+    setExpandedTrustSection((prev) => (prev === section ? null : section));
+  };
+  const showInfluencerDetails = expandedTrustSection === "influencer";
+  const showCompanyDetails = expandedTrustSection === "company";
+  const showProductDetails = expandedTrustSection === "product";
 
   const overallPercent = scorePercent;
   const messageLabel = fullResult.message_prediction.label;
@@ -106,29 +115,40 @@ export function ResultState({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold">Why we said this</p>
-        {reasonBullets.length > 0 ? (
-          <ul className="space-y-2">
-            {reasonBullets.map((bullet, index) => {
-              const severity = severityStyles[bullet.severity];
-              return (
-                <li
-                  key={bullet.text}
-                  className={`bullet-rise relative flex items-start gap-3 rounded-2xl border ${themeTokens.surfaceBorder} px-4 py-3 text-sm before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:rounded-full before:content-[''] ${severity.accent}`}
-                  style={{ animationDelay: `${index * 80}ms` }}
-                >
-                  <span
-                    className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${severity.text}`}
-                  >
-                    {severity.icon}
-                  </span>
-                  <span className="text-slate-700">{bullet.text}</span>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className={`text-sm ${themeTokens.muted}`}>The model didn&apos;t provide detailed reasons for this run.</p>
+        <button
+          type="button"
+          onClick={() => setShowReasons((prev) => !prev)}
+          className="flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-[#EA580C]"
+        >
+          Why we said this
+          <span>{showReasons ? "-" : "+"}</span>
+        </button>
+        {showReasons && (
+          <div className={`rounded-2xl border ${themeTokens.surfaceBorder} ${themeTokens.inputBg} px-4 py-4`}>
+            {reasonBullets.length > 0 ? (
+              <ul className="space-y-2">
+                {reasonBullets.map((bullet, index) => {
+                  const severity = severityStyles[bullet.severity];
+                  return (
+                    <li
+                      key={bullet.text}
+                      className={`bullet-rise relative flex items-start gap-3 rounded-2xl border ${themeTokens.surfaceBorder} px-4 py-3 text-sm before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:rounded-full before:content-[''] ${severity.accent}`}
+                      style={{ animationDelay: `${index * 80}ms` }}
+                    >
+                      <span
+                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${severity.text}`}
+                      >
+                        {severity.icon}
+                      </span>
+                      <span className="text-slate-700">{bullet.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className={`text-sm ${themeTokens.muted}`}>The model didn&apos;t provide detailed reasons for this run.</p>
+            )}
+          </div>
         )}
       </div>
 
@@ -174,117 +194,171 @@ export function ResultState({
         fullResult.source_details.inferred_product_name) && (
         <div className="grid gap-3 md:grid-cols-2">
           {showInfluencerCard && (
-            <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Influencer trust</p>
-                {fullResult.influencer_trust && (
-                  <p className="text-lg font-semibold text-slate-900">
-                    {(fullResult.influencer_trust.trust_score * 100).toFixed(0)}%{" "}
-                    <span className="text-sm uppercase text-slate-500">({fullResult.influencer_trust.label})</span>
-                  </p>
-                )}
-              </div>
-              {fullResult.influencer_trust ? (
-                <>
-                  {influencerDisplayName && (
-                    <p className="text-sm font-semibold text-slate-800">{influencerDisplayName}</p>
-                  )}
-                  {influencerFullName && influencerHandleCopy && (
-                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{influencerHandleCopy}</p>
-                  )}
-                  <p className="text-sm text-slate-700">{fullResult.influencer_trust.notes}</p>
-                  <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
-                    <TrustStat label="Message history" value={fullResult.influencer_trust.message_history_score} />
-                    <TrustStat label="Followers" value={fullResult.influencer_trust.followers_score} />
-                    <TrustStat label="Web reputation" value={fullResult.influencer_trust.web_reputation_score} />
-                  </div>
-                  <DisclosureGauge score={fullResult.influencer_trust.disclosure_score} />
-                  <div className="space-y-1 text-xs text-slate-500">
-                    <p>
-                      Followers:{" "}
-                      <span className="font-semibold text-slate-800">
-                        {fullResult.influencer_trust.stats.followers?.toLocaleString() ?? "–"}
-                      </span>
+            <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm self-start">
+              <button
+                type="button"
+                onClick={() => toggleTrustSection("influencer")}
+                className="flex w-full items-center justify-between text-left"
+                aria-expanded={showInfluencerDetails}
+              >
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Influencer trust</p>
+                  {fullResult.influencer_trust ? (
+                    <p className="text-lg font-semibold text-slate-900">
+                      {(fullResult.influencer_trust.trust_score * 100).toFixed(0)}%{" "}
+                      <span className="text-sm uppercase text-slate-500">({fullResult.influencer_trust.label})</span>
                     </p>
-                    {fullResult.influencer_trust.stats.url && (
-                      <a
-                        href={fullResult.influencer_trust.stats.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[#EA580C] underline-offset-4 hover:underline"
-                      >
-                        View Instagram profile
-                      </a>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-slate-600">
-                  {detectedInstagramOwner
-                    ? `We detected ${detectedInstagramOwner} but there was not enough data to build an influencer trust snapshot.`
-                    : "We could not identify an influencer for this message, so trust scoring was skipped."}
-                </p>
+                  ) : (
+                    <p className="text-sm text-slate-600">
+                      {detectedInstagramOwner
+                        ? `Detected ${detectedInstagramOwner}`
+                        : "No influencer identified"}
+                    </p>
+                  )}
+                </div>
+                <span className="text-xl text-[#EA580C]">{showInfluencerDetails ? "-" : "+"}</span>
+              </button>
+              {showInfluencerDetails && (
+                <div className="space-y-3 border-t border-[#E2E8F0] pt-4">
+                  {fullResult.influencer_trust ? (
+                    <>
+                      {influencerDisplayName && (
+                        <p className="text-sm font-semibold text-slate-800">{influencerDisplayName}</p>
+                      )}
+                      {influencerFullName && influencerHandleCopy && (
+                        <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{influencerHandleCopy}</p>
+                      )}
+                      <p className="text-sm text-slate-700">{fullResult.influencer_trust.notes}</p>
+                      <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                        <TrustStat label="Message history" value={fullResult.influencer_trust.message_history_score} />
+                        <TrustStat label="Followers" value={fullResult.influencer_trust.followers_score} />
+                        <TrustStat label="Web reputation" value={fullResult.influencer_trust.web_reputation_score} />
+                      </div>
+                      <DisclosureGauge score={fullResult.influencer_trust.disclosure_score} />
+                      <div className="space-y-1 text-xs text-slate-500">
+                        <p>
+                          Followers:{" "}
+                          <span className="font-semibold text-slate-800">
+                            {fullResult.influencer_trust.stats.followers?.toLocaleString() ?? "–"}
+                          </span>
+                        </p>
+                        {fullResult.influencer_trust.stats.url && (
+                          <a
+                            href={fullResult.influencer_trust.stats.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#EA580C] underline-offset-4 hover:underline"
+                          >
+                            View Instagram profile
+                          </a>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-600">
+                      {detectedInstagramOwner
+                        ? `We detected ${detectedInstagramOwner} but there was not enough data to build an influencer trust snapshot.`
+                        : "We could not identify an influencer for this message, so trust scoring was skipped."}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
 
-          <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Company reputation</p>
-              {fullResult.company_trust && (
-                <p className="text-lg font-semibold text-slate-900">
-                  {(fullResult.company_trust.trust_score * 100).toFixed(0)}%
-                </p>
-              )}
-            </div>
-            {fullResult.company_trust ? (
-              <>
-                <p className="text-sm font-semibold text-slate-800">{fullResult.company_trust.name}</p>
-                <p className="text-sm text-slate-700">{fullResult.company_trust.summary}</p>
-                {fullResult.company_trust.issues.length > 0 && (
-                  <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
-                    {fullResult.company_trust.issues.map((issue) => (
-                      <li key={issue}>{issue}</li>
-                    ))}
-                  </ul>
+          <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm self-start">
+            <button
+              type="button"
+              onClick={() => toggleTrustSection("company")}
+              className="flex w-full items-center justify-between text-left"
+              aria-expanded={showCompanyDetails}
+            >
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Company reputation</p>
+                {fullResult.company_trust ? (
+                  <p className="text-lg font-semibold text-slate-900">
+                    {(fullResult.company_trust.trust_score * 100).toFixed(0)}%
+                  </p>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    {fullResult.source_details.inferred_company_name
+                      ? `Detected ${fullResult.source_details.inferred_company_name}`
+                      : "No company detected"}
+                  </p>
                 )}
-              </>
-            ) : (
-              <p className="text-sm text-slate-600">
-                {fullResult.source_details.inferred_company_name
-                  ? `We detected "${fullResult.source_details.inferred_company_name}" in the message, but there was not enough data to build a reputation snapshot.`
-                  : "No clear company or product was detected in this message, so the reputation step was skipped."}
-              </p>
+              </div>
+              <span className="text-xl text-[#EA580C]">{showCompanyDetails ? "-" : "+"}</span>
+            </button>
+            {showCompanyDetails && (
+              <div className="space-y-3 border-t border-[#E2E8F0] pt-4">
+                {fullResult.company_trust ? (
+                  <>
+                    <p className="text-sm font-semibold text-slate-800">{fullResult.company_trust.name}</p>
+                    <p className="text-sm text-slate-700">{fullResult.company_trust.summary}</p>
+                    {fullResult.company_trust.issues.length > 0 && (
+                      <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
+                        {fullResult.company_trust.issues.map((issue) => (
+                          <li key={issue}>{issue}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    {fullResult.source_details.inferred_company_name
+                      ? `We detected "${fullResult.source_details.inferred_company_name}" in the message, but there was not enough data to build a reputation snapshot.`
+                      : "No clear company or product was detected in this message, so the reputation step was skipped."}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Product reliability</p>
-              {fullResult.product_trust && (
-                <p className="text-lg font-semibold text-slate-900">
-                  {(fullResult.product_trust.trust_score * 100).toFixed(0)}%
-                </p>
-              )}
-            </div>
-            {fullResult.product_trust ? (
-              <>
-                <p className="text-sm font-semibold text-slate-800">{fullResult.product_trust.name}</p>
-                <p className="text-sm text-slate-700">{fullResult.product_trust.summary}</p>
-                {fullResult.product_trust.issues.length > 0 && (
-                  <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
-                    {fullResult.product_trust.issues.map((issue) => (
-                      <li key={issue}>{issue}</li>
-                    ))}
-                  </ul>
+          <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm self-start">
+            <button
+              type="button"
+              onClick={() => toggleTrustSection("product")}
+              className="flex w-full items-center justify-between text-left"
+              aria-expanded={showProductDetails}
+            >
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Product reliability</p>
+                {fullResult.product_trust ? (
+                  <p className="text-lg font-semibold text-slate-900">
+                    {(fullResult.product_trust.trust_score * 100).toFixed(0)}%
+                  </p>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    {fullResult.source_details.inferred_product_name
+                      ? `Detected ${fullResult.source_details.inferred_product_name}`
+                      : "No product detected"}
+                  </p>
                 )}
-              </>
-            ) : (
-              <p className="text-sm text-slate-600">
-                {fullResult.source_details.inferred_product_name
-                  ? `We detected "${fullResult.source_details.inferred_product_name}" but there was not enough data to build a product reliability snapshot.`
-                  : "No clear product was detected in this message, so the reliability step was skipped."}
-              </p>
+              </div>
+              <span className="text-xl text-[#EA580C]">{showProductDetails ? "-" : "+"}</span>
+            </button>
+            {showProductDetails && (
+              <div className="space-y-3 border-t border-[#E2E8F0] pt-4">
+                {fullResult.product_trust ? (
+                  <>
+                    <p className="text-sm font-semibold text-slate-800">{fullResult.product_trust.name}</p>
+                    <p className="text-sm text-slate-700">{fullResult.product_trust.summary}</p>
+                    {fullResult.product_trust.issues.length > 0 && (
+                      <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
+                        {fullResult.product_trust.issues.map((issue) => (
+                          <li key={issue}>{issue}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    {fullResult.source_details.inferred_product_name
+                      ? `We detected "${fullResult.source_details.inferred_product_name}" but there was not enough data to build a product reliability snapshot.`
+                      : "No clear product was detected in this message, so the reliability step was skipped."}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
