@@ -182,6 +182,7 @@ export function ResultState({
                 <TrustStat label="Followers" value={fullResult.influencer_trust.followers_score} />
                 <TrustStat label="Web reputation" value={fullResult.influencer_trust.web_reputation_score} />
               </div>
+              <DisclosureGauge score={fullResult.influencer_trust.disclosure_score} />
               <div className="space-y-1 text-xs text-slate-500">
                 <p>
                   Followers:{" "}
@@ -296,6 +297,33 @@ function TrustStat({ label, value }: { label: string; value: number }) {
       <p className="uppercase tracking-widest text-[0.6rem] text-slate-500 leading-tight">
         {label}
       </p>
+    </div>
+  );
+}
+
+function DisclosureGauge({ score }: { score: number }) {
+  const pct = Math.round(Math.min(Math.max(score, 0), 1) * 100);
+  const tone =
+    pct >= 90 ? "bg-emerald-400" :
+    pct >= 60 ? "bg-amber-400" :
+    "bg-rose-400";
+  const copy =
+    pct >= 90
+      ? "Ads look transparently disclosed."
+      : pct >= 60
+      ? "Disclosures appear occasionally."
+      : "No disclosure markers spotted recently.";
+
+  return (
+    <div className="rounded-2xl border border-slate-200 px-4 py-3 text-xs text-slate-600">
+      <div className="flex items-center justify-between text-[0.65rem] uppercase tracking-[0.3em] text-slate-500">
+        <span>Ad disclosure</span>
+        <span className="font-semibold text-slate-900">{pct}%</span>
+      </div>
+      <div className="mt-2 h-2 w-full rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-2 text-[0.7rem] leading-relaxed text-slate-500">{copy}</p>
     </div>
   );
 }

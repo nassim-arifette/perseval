@@ -2,7 +2,7 @@ import json
 import math
 import os
 from dataclasses import asdict
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Tuple
 
 import requests
 from dotenv import load_dotenv
@@ -78,6 +78,7 @@ class InfluencerTrustResponse(BaseModel):
     message_history_score: float = Field(..., ge=0.0, le=1.0)
     followers_score: float = Field(..., ge=0.0, le=1.0)
     web_reputation_score: float = Field(..., ge=0.0, le=1.0)
+    disclosure_score: float = Field(..., ge=0.0, le=1.0)
     notes: str
 
 
@@ -325,15 +326,46 @@ def compute_followers_score(
     return 0.7 * followers_size_score + 0.3 * ratio_score
 
 
+def compute_disclosure_score(sample_posts: List[Optional[str]]) -> float:
+    """
+    Look for ad disclosure markers in recent captions.
+    """
+    if not sample_posts:
+        return 0.3  # assume weak behavior when we cannot confirm
+
+    markers = ("#ad", "#sponsored", "paid partnership")
+    disclosures = 0
+    total = 0
+    for raw in sample_posts:
+        if not raw:
+            continue
+        total += 1
+        normalized = raw.lower()
+        if any(marker in normalized for marker in markers):
+            disclosures += 1
+
+    if total == 0:
+        return 0.3
+
+    ratio = disclosures / total
+    if ratio >= 0.6:
+        return 1.0
+    if ratio > 0:
+        return 0.6
+    return 0.3
+
+
 def combine_trust_score(
     message_history_score: float,
     followers_score: float,
     web_reputation_score: float,
+    disclosure_score: float,
 ) -> float:
     return (
-        0.35 * message_history_score
+        0.3 * message_history_score
         + 0.15 * followers_score
-        + 0.5 * web_reputation_score
+        + 0.4 * web_reputation_score
+        + 0.15 * disclosure_score
     )
 
 
@@ -522,28 +554,7 @@ Respond ONLY as JSON:
     return call_mistral_json(messages)
 
 
-def detect_company_from_text(text: str) -> Optional[str]:
-    """
-    Use the LLM to guess which company/product is referenced in the message.
-    """
-    system_prompt = """
-You identify the most relevant company or product mentioned in a message.
-
-Respond ONLY as JSON:
-{
-  "company_candidates": [
-    {"name": "Company or product name", "confidence": 0-1 float, "reason": "short string"}
-  ]
-}
-
-Return an empty list if no credible company is mentioned.
-""".strip()
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": text},
-    ]
-    data = call_mistral_json(messages)
-    candidates = data.get("company_candidates") or []
+def _select_best_candidate(candidates: List[dict]) -> Optional[str]:
     best_name = None
     best_conf = 0.0
     for item in candidates:
@@ -560,6 +571,40 @@ Return an empty list if no credible company is mentioned.
     return None
 
 
+def detect_company_and_product_from_text(text: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Use the LLM to infer both the company/brand and the product/service being promoted.
+    """
+    system_prompt = """
+You identify any company/brand and product/service referenced in a message.
+
+Distinguish the organization (company) from the item being offered (product).
+If the same string refers to both but context makes it primarily a product, leave the company list empty.
+
+Respond ONLY as JSON:
+{
+  "company_candidates": [
+    {"name": "Company or brand", "confidence": 0-1 float}
+  ],
+  "product_candidates": [
+    {"name": "Product or service", "confidence": 0-1 float}
+  ]
+}
+
+Return empty lists when unsure.
+""".strip()
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": text},
+    ]
+    data = call_mistral_json(messages)
+    company = _select_best_candidate(data.get("company_candidates") or [])
+    product = _select_best_candidate(data.get("product_candidates") or [])
+    if company and product and company.lower() == product.lower():
+        product = None
+    return company, product
+
+
 async def build_influencer_trust_response(
     handle: str,
     max_posts: int,
@@ -569,11 +614,12 @@ async def build_influencer_trust_response(
 
     mh_score = compute_message_history_score(stats.sample_posts or [])
     followers_score = compute_followers_score(stats.followers, stats.following)
+    disclosure_score = compute_disclosure_score(stats.sample_posts or [])
     web_snippets = get_influencer_snippets(handle, stats.full_name)
     web_reputation = evaluate_influencer_reputation(handle, web_snippets)
     web_score = float(web_reputation.get("influencer_reliability", 0.5))
 
-    trust_score = combine_trust_score(mh_score, followers_score, web_score)
+    trust_score = combine_trust_score(mh_score, followers_score, web_score, disclosure_score)
     label = label_from_trust_score(trust_score)
 
     recent_note = (
@@ -582,11 +628,17 @@ async def build_influencer_trust_response(
     follower_note = (
         "plausible" if followers_score > 0.7 else "unusual" if followers_score < 0.4 else "unclear"
     )
+    disclosure_note = (
+        "ads clearly disclosed" if disclosure_score >= 0.9
+        else "disclosures are sporadic" if disclosure_score >= 0.6
+        else "ads rarely flagged as sponsored"
+    )
     web_note = web_reputation.get("summary") or "Little public information available."
     notes = (
         f"Recent posts look {recent_note}. "
         f"Followers profile looks {follower_note}. "
-        f"Web reputation: {web_note}"
+        f"Web reputation: {web_note} "
+        f"Disclosure behavior: {disclosure_note}."
     )
 
     return InfluencerTrustResponse(
@@ -596,6 +648,7 @@ async def build_influencer_trust_response(
         message_history_score=mh_score,
         followers_score=followers_score,
         web_reputation_score=web_score,
+        disclosure_score=disclosure_score,
         notes=notes,
     )
 
@@ -784,15 +837,16 @@ async def analyze_full(req: FullAnalysisRequest):
     inferred_product = None
     company_name = (req.company_name or "").strip() or None
     product_name = (req.product_name or "").strip() or None
-    detected_candidate = None
+    detected_company = None
+    detected_product = None
     if not company_name or not product_name:
-        detected_candidate = detect_company_from_text(text)
-    if not company_name and detected_candidate:
-        inferred_company = detected_candidate
-        company_name = detected_candidate
-    if not product_name and detected_candidate:
-        inferred_product = detected_candidate
-        product_name = detected_candidate
+        detected_company, detected_product = detect_company_and_product_from_text(text)
+    if not company_name and detected_company:
+        inferred_company = detected_company
+        company_name = detected_company
+    if not product_name and detected_product:
+        inferred_product = detected_product
+        product_name = detected_product
     company_trust = None
     if company_name:
         try:

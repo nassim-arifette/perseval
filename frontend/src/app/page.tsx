@@ -29,6 +29,8 @@ export default function Home() {
   const [text, setText] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [influencerHandle, setInfluencerHandle] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [productName, setProductName] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<FullAnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,21 @@ export default function Home() {
       ? `${previewSource.slice(0, 200)}...`
       : previewSource
     : "No message has been provided yet.";
-  const scorePercent = messagePrediction ? clampPercent(messagePrediction.score) : null;
+  const overallScore = messagePrediction
+    ? (() => {
+        const scores: number[] = [messagePrediction.score];
+        const maybeAdd = (value?: number | null) => {
+          if (typeof value === "number" && Number.isFinite(value)) {
+            scores.push(value);
+          }
+        };
+        maybeAdd(result?.influencer_trust?.trust_score ?? null);
+        maybeAdd(result?.company_trust?.trust_score ?? null);
+        maybeAdd(result?.product_trust?.trust_score ?? null);
+        return Math.min(...scores);
+      })()
+    : null;
+  const scorePercent = overallScore !== null ? clampPercent(overallScore) : null;
   const cardSurfaceClass =
     cardState === "result"
       ? activeRisk.cardTone
@@ -85,6 +101,8 @@ export default function Home() {
           text: text.trim() || undefined,
           instagram_url: instagramUrl.trim() || undefined,
           influencer_handle: influencerHandle.trim() || undefined,
+          company_name: companyName.trim() || undefined,
+          product_name: productName.trim() || undefined,
         }),
         signal: controller.signal,
       });
@@ -121,6 +139,8 @@ export default function Home() {
     setText("");
     setInstagramUrl("");
     setInfluencerHandle("");
+    setCompanyName("");
+    setProductName("");
     setResult(null);
     setError(null);
   }
@@ -152,12 +172,16 @@ export default function Home() {
         text={text}
         instagramUrl={instagramUrl}
         influencerHandle={influencerHandle}
+        companyName={companyName}
+        productName={productName}
         charCountCopy={charCountCopy}
         canSubmit={canSubmit}
         loading={loading}
         onTextChange={setText}
         onInstagramUrlChange={setInstagramUrl}
         onInfluencerHandleChange={setInfluencerHandle}
+        onCompanyNameChange={setCompanyName}
+        onProductNameChange={setProductName}
         onKeyDown={handleTextareaKeyDown}
         onSubmit={handleAnalyze}
         onExample={handleExampleInsert}

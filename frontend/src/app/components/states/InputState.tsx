@@ -11,9 +11,13 @@ type InputStateProps = {
   loading: boolean;
   instagramUrl: string;
   influencerHandle: string;
+  companyName: string;
+  productName: string;
   onTextChange: (value: string) => void;
   onInstagramUrlChange: (value: string) => void;
   onInfluencerHandleChange: (value: string) => void;
+  onCompanyNameChange: (value: string) => void;
+  onProductNameChange: (value: string) => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: () => void;
   onExample: () => void;
@@ -28,9 +32,13 @@ export function InputState({
   loading,
   instagramUrl,
   influencerHandle,
+  companyName,
+  productName,
   onTextChange,
   onInstagramUrlChange,
   onInfluencerHandleChange,
+  onCompanyNameChange,
+  onProductNameChange,
   onKeyDown,
   onSubmit,
   onExample,
@@ -87,6 +95,37 @@ export function InputState({
           />
           <p className={`text-[0.7rem] ${themeTokens.muted}`}>
             Leave blank to auto-use the owner of the Instagram URL (when provided).
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Company name (optional)</p>
+          <input
+            type="text"
+            placeholder="Brand or organization..."
+            value={companyName}
+            disabled={loading}
+            onChange={(event) => onCompanyNameChange(event.target.value)}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+          />
+          <p className={`text-[0.7rem] ${themeTokens.muted}`}>
+            Pinpointing the brand improves the company reputation lookup.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Product name (optional)</p>
+          <input
+            type="text"
+            placeholder="Product or offer mentioned..."
+            value={productName}
+            disabled={loading}
+            onChange={(event) => onProductNameChange(event.target.value)}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+          />
+          <p className={`text-[0.7rem] ${themeTokens.muted}`}>
+            This helps the product reliability check find exact results.
           </p>
         </div>
       </div>

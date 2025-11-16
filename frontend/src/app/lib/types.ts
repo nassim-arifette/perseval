@@ -35,6 +35,7 @@ export type InfluencerTrustResponse = {
   message_history_score: number;
   followers_score: number;
   web_reputation_score: number;
+  disclosure_score: number;
   notes: string;
 };
 
