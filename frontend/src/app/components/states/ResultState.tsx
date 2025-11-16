@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
@@ -31,6 +31,12 @@ export function ResultState({
   onClear,
 }: ResultStateProps) {
   const [showHighlights, setShowHighlights] = useState(false);
+  const influencerStats = fullResult.influencer_trust?.stats;
+  const influencerFullName = influencerStats?.full_name?.trim() || null;
+  const influencerHandleCopy = formatHandle(influencerStats?.handle);
+  const detectedInstagramOwner = formatHandle(fullResult.source_details.instagram_owner);
+  const influencerDisplayName = influencerFullName || influencerHandleCopy || detectedInstagramOwner;
+  const showInfluencerCard = Boolean(fullResult.influencer_trust || detectedInstagramOwner);
 
   const overallPercent = scorePercent;
   const messageLabel = fullResult.message_prediction.label;
@@ -50,7 +56,7 @@ export function ResultState({
             <div
               className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 text-lg font-semibold ${overallTone}`}
             >
-              {overallPercent !== null ? `${overallPercent}%` : "–"}
+              {overallPercent !== null ? `${overallPercent}%` : "ÔÇô"}
             </div>
             <div className="min-w-0">
               <span
@@ -122,7 +128,7 @@ export function ResultState({
             })}
           </ul>
         ) : (
-          <p className={`text-sm ${themeTokens.muted}`}>The model didn't provide detailed reasons for this run.</p>
+          <p className={`text-sm ${themeTokens.muted}`}>The model didn&apos;t provide detailed reasons for this run.</p>
         )}
       </div>
 
@@ -161,46 +167,64 @@ export function ResultState({
         )}
       </div>
 
-      {(fullResult.influencer_trust ||
+      {(showInfluencerCard ||
         fullResult.company_trust ||
         fullResult.product_trust ||
         fullResult.source_details.inferred_company_name ||
         fullResult.source_details.inferred_product_name) && (
         <div className="grid gap-3 md:grid-cols-2">
-          {fullResult.influencer_trust && (
+          {showInfluencerCard && (
             <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Influencer trust</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {(fullResult.influencer_trust.trust_score * 100).toFixed(0)}%{" "}
-                  <span className="text-sm uppercase text-slate-500">({fullResult.influencer_trust.label})</span>
-                </p>
-              </div>
-              <p className="text-sm text-slate-700">{fullResult.influencer_trust.notes}</p>
-              <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
-                <TrustStat label="Message history" value={fullResult.influencer_trust.message_history_score} />
-                <TrustStat label="Followers" value={fullResult.influencer_trust.followers_score} />
-                <TrustStat label="Web reputation" value={fullResult.influencer_trust.web_reputation_score} />
-              </div>
-              <DisclosureGauge score={fullResult.influencer_trust.disclosure_score} />
-              <div className="space-y-1 text-xs text-slate-500">
-                <p>
-                  Followers:{" "}
-                  <span className="font-semibold text-slate-800">
-                    {fullResult.influencer_trust.stats.followers?.toLocaleString() ?? "–"}
-                  </span>
-                </p>
-                {fullResult.influencer_trust.stats.url && (
-                  <a
-                    href={fullResult.influencer_trust.stats.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#EA580C] underline-offset-4 hover:underline"
-                  >
-                    View Instagram profile
-                  </a>
+                {fullResult.influencer_trust && (
+                  <p className="text-lg font-semibold text-slate-900">
+                    {(fullResult.influencer_trust.trust_score * 100).toFixed(0)}%{" "}
+                    <span className="text-sm uppercase text-slate-500">({fullResult.influencer_trust.label})</span>
+                  </p>
                 )}
               </div>
+              {fullResult.influencer_trust ? (
+                <>
+                  {influencerDisplayName && (
+                    <p className="text-sm font-semibold text-slate-800">{influencerDisplayName}</p>
+                  )}
+                  {influencerFullName && influencerHandleCopy && (
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{influencerHandleCopy}</p>
+                  )}
+                  <p className="text-sm text-slate-700">{fullResult.influencer_trust.notes}</p>
+                  <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                    <TrustStat label="Message history" value={fullResult.influencer_trust.message_history_score} />
+                    <TrustStat label="Followers" value={fullResult.influencer_trust.followers_score} />
+                    <TrustStat label="Web reputation" value={fullResult.influencer_trust.web_reputation_score} />
+                  </div>
+                  <DisclosureGauge score={fullResult.influencer_trust.disclosure_score} />
+                  <div className="space-y-1 text-xs text-slate-500">
+                    <p>
+                      Followers:{" "}
+                      <span className="font-semibold text-slate-800">
+                        {fullResult.influencer_trust.stats.followers?.toLocaleString() ?? "–"}
+                      </span>
+                    </p>
+                    {fullResult.influencer_trust.stats.url && (
+                      <a
+                        href={fullResult.influencer_trust.stats.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#EA580C] underline-offset-4 hover:underline"
+                      >
+                        View Instagram profile
+                      </a>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  {detectedInstagramOwner
+                    ? `We detected ${detectedInstagramOwner} but there was not enough data to build an influencer trust snapshot.`
+                    : "We could not identify an influencer for this message, so trust scoring was skipped."}
+                </p>
+              )}
             </div>
           )}
 
@@ -326,4 +350,15 @@ function DisclosureGauge({ score }: { score: number }) {
       <p className="mt-2 text-[0.7rem] leading-relaxed text-slate-500">{copy}</p>
     </div>
   );
+}
+
+function formatHandle(value?: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return `@${trimmed.replace(/^@/, "")}`;
 }

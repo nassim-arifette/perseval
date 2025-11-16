@@ -25,6 +25,17 @@ import { buildReasonBullets, clampPercent, deriveRiskTier, highlightText } from 
 
 type CardState = "input" | "analyzing" | "result";
 
+const INSTAGRAM_URL_PATTERN = /^(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/[^\s]+$/i;
+
+function extractStandaloneInstagramUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || !INSTAGRAM_URL_PATTERN.test(trimmed)) {
+    return null;
+  }
+  const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/\//, "")}`;
+  return normalized;
+}
+
 export default function Home() {
   const [text, setText] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
@@ -82,7 +93,14 @@ export default function Home() {
   );
 
   async function handleAnalyze() {
-    if (!text.trim() && !instagramUrl.trim()) {
+    const trimmedText = text.trim();
+    const trimmedInstagramUrl = instagramUrl.trim();
+    const autoDetectedInstagramUrl =
+      !trimmedInstagramUrl && trimmedText ? extractStandaloneInstagramUrl(trimmedText) : null;
+    const payloadText = autoDetectedInstagramUrl ? "" : trimmedText;
+    const payloadInstagramUrl = trimmedInstagramUrl || autoDetectedInstagramUrl || "";
+
+    if (!payloadText && !payloadInstagramUrl) {
       setError("Paste message text or provide an Instagram URL to analyze.");
       return;
     }
@@ -98,8 +116,8 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: text.trim() || undefined,
-          instagram_url: instagramUrl.trim() || undefined,
+          text: payloadText || undefined,
+          instagram_url: payloadInstagramUrl || undefined,
           influencer_handle: influencerHandle.trim() || undefined,
           company_name: companyName.trim() || undefined,
           product_name: productName.trim() || undefined,
@@ -114,12 +132,24 @@ export default function Home() {
 
       const data: FullAnalysisResponse = await response.json();
       setResult(data);
-    } catch (err: any) {
-      if (err?.name === "AbortError") {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") {
         return;
       }
       setResult(null);
-      setError(err?.message ?? "We couldn't analyze this. Try again soon.");
+      const fallbackMessage = "We couldn't analyze this. Try again soon.";
+      if (err instanceof Error) {
+        setError(err.message || fallbackMessage);
+      } else if (
+        typeof err === "object" &&
+        err !== null &&
+        "message" in err &&
+        typeof (err as { message?: string }).message === "string"
+      ) {
+        setError((err as { message?: string }).message || fallbackMessage);
+      } else {
+        setError(fallbackMessage);
+      }
     } finally {
       if (abortRef.current === controller) {
         abortRef.current = null;

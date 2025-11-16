@@ -50,7 +50,7 @@ export function InputState({
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Input</p>
         <h1 className={`text-2xl font-semibold ${themeTokens.heading}`}>
-          Paste the message or caption you're unsure about
+          Paste the message or caption you&apos;re unsure about
         </h1>
         <p className={`text-sm ${themeTokens.muted}`}>We only analyze it for this session.</p>
       </div>
@@ -69,6 +69,9 @@ export function InputState({
           <span>{charCountCopy}</span>
           <span>Cmd/Ctrl + Enter</span>
         </div>
+        <p className={`mt-1 text-[0.7rem] ${themeTokens.muted}`}>
+          Drop only an Instagram link here and we&apos;ll auto-detect it.
+        </p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
