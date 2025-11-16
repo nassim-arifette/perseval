@@ -12,6 +12,10 @@ export async function POST(request: Request) {
       typeof payload?.instagram_url === "string"
         ? payload.instagram_url.trim()
         : undefined;
+    const tiktokUrl =
+      typeof payload?.tiktok_url === "string"
+        ? payload.tiktok_url.trim()
+        : undefined;
     const influencerHandle =
       typeof payload?.influencer_handle === "string"
         ? payload.influencer_handle.trim()
@@ -39,9 +43,9 @@ export async function POST(request: Request) {
         ? Math.min(Math.max(Math.trunc(payload.product_max_results), 1), 20)
         : 8;
 
-    if (!text && !instagramUrl) {
+    if (!text && !instagramUrl && !tiktokUrl) {
       return NextResponse.json(
-        { detail: "Provide text or an Instagram URL to analyze." },
+        { detail: "Provide text, an Instagram URL, or a TikTok URL to analyze." },
         { status: 400 },
       );
     }
@@ -54,6 +58,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           text,
           instagram_url: instagramUrl,
+          tiktok_url: tiktokUrl,
           influencer_handle: influencerHandle,
           company_name: companyName,
           product_name: productName,

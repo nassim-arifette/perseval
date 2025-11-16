@@ -10,11 +10,13 @@ type InputStateProps = {
   canSubmit: boolean;
   loading: boolean;
   instagramUrl: string;
+  tiktokUrl: string;
   influencerHandle: string;
   companyName: string;
   productName: string;
   onTextChange: (value: string) => void;
   onInstagramUrlChange: (value: string) => void;
+  onTiktokUrlChange: (value: string) => void;
   onInfluencerHandleChange: (value: string) => void;
   onCompanyNameChange: (value: string) => void;
   onProductNameChange: (value: string) => void;
@@ -31,11 +33,13 @@ export function InputState({
   canSubmit,
   loading,
   instagramUrl,
+  tiktokUrl,
   influencerHandle,
   companyName,
   productName,
   onTextChange,
   onInstagramUrlChange,
+  onTiktokUrlChange,
   onInfluencerHandleChange,
   onCompanyNameChange,
   onProductNameChange,
@@ -64,7 +68,7 @@ export function InputState({
           disabled={loading}
           onChange={(event) => onTextChange(event.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Paste the message, caption, or drop a single Instagram link (auto-detected)..."
+          placeholder="Paste the message, caption, or drop a single Instagram or TikTok link (auto-detected)..."
           className={`w-full rounded-2xl border px-4 py-4 text-base leading-relaxed outline-none transition focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder} ${themeTokens.placeholder}`}
         />
         <div className={`mt-2 flex items-center justify-between text-xs ${themeTokens.muted}`}>
@@ -72,7 +76,7 @@ export function InputState({
           <span>Cmd/Ctrl + Enter</span>
         </div>
         <p className={`mt-1 text-[0.7rem] ${themeTokens.muted}`}>
-          Drop only an Instagram link here and we&apos;ll auto-detect it.
+          Drop only an Instagram or TikTok link here and we&apos;ll auto-detect it.
         </p>
       </div>
 
@@ -97,6 +101,17 @@ export function InputState({
                   value={instagramUrl}
                   disabled={loading}
                   onChange={(event) => onInstagramUrlChange(event.target.value)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">TikTok URL</p>
+                <input
+                  type="url"
+                  placeholder="https://www.tiktok.com/@user/video/..."
+                  value={tiktokUrl}
+                  disabled={loading}
+                  onChange={(event) => onTiktokUrlChange(event.target.value)}
                   className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#F97316]/40 ${themeTokens.inputBg} ${themeTokens.inputBorder}`}
                 />
               </div>

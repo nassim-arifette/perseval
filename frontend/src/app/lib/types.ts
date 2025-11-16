@@ -54,9 +54,11 @@ export type ProductTrustResponse = {
 };
 
 export type FullAnalysisSourceDetails = {
-  text_origin: "input" | "instagram";
+  text_origin: "input" | "instagram" | "tiktok";
   instagram_url?: string | null;
   instagram_owner?: string | null;
+  tiktok_url?: string | null;
+  tiktok_author?: string | null;
   inferred_company_name?: string | null;
   inferred_product_name?: string | null;
 };

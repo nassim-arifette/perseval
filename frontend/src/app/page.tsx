@@ -25,19 +25,33 @@ import { buildReasonBullets, clampPercent, deriveRiskTier } from "./lib/risk";
 type CardState = "input" | "analyzing" | "result";
 
 const INSTAGRAM_URL_PATTERN = /^(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am)\/[^\s]+$/i;
+const TIKTOK_URL_PATTERN = /^(?:https?:\/\/)?(?:www\.)?(?:tiktok\.com)\/[^\s]+$/i;
+
+function normalizeUrlCandidate(value: string): string {
+  const cleaned = value.trim().replace(/^\/\//, "");
+  return /^https?:\/\//i.test(cleaned) ? cleaned : `https://${cleaned}`;
+}
 
 function extractStandaloneInstagramUrl(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed || !INSTAGRAM_URL_PATTERN.test(trimmed)) {
     return null;
   }
-  const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/\//, "")}`;
-  return normalized;
+  return normalizeUrlCandidate(trimmed);
+}
+
+function extractStandaloneTiktokUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || !TIKTOK_URL_PATTERN.test(trimmed)) {
+    return null;
+  }
+  return normalizeUrlCandidate(trimmed);
 }
 
 export default function Home() {
   const [text, setText] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
   const [influencerHandle, setInfluencerHandle] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [productName, setProductName] = useState("");
@@ -52,7 +66,10 @@ export default function Home() {
   const cardState: CardState = loading ? "analyzing" : result ? "result" : "input";
   const messagePrediction: ScamPrediction | null = result?.message_prediction ?? null;
   const canSubmit =
-    !loading && (Boolean(text.trim()) || Boolean(instagramUrl.trim()));
+    !loading &&
+    (Boolean(text.trim()) ||
+      Boolean(instagramUrl.trim()) ||
+      Boolean(tiktokUrl.trim()));
   const riskTier = deriveRiskTier(messagePrediction?.label);
   const activeRisk = riskStyles[riskTier];
   const previewSource = (messagePrediction?.raw_post_text ?? text).trim();
@@ -89,13 +106,23 @@ export default function Home() {
   async function handleAnalyze() {
     const trimmedText = text.trim();
     const trimmedInstagramUrl = instagramUrl.trim();
+    const trimmedTiktokUrl = tiktokUrl.trim();
+
+    if (trimmedInstagramUrl && trimmedTiktokUrl) {
+      setError("Provide either an Instagram URL or a TikTok URL, not both.");
+      return;
+    }
+
     const autoDetectedInstagramUrl =
       !trimmedInstagramUrl && trimmedText ? extractStandaloneInstagramUrl(trimmedText) : null;
-    const payloadText = autoDetectedInstagramUrl ? "" : trimmedText;
+    const autoDetectedTiktokUrl =
+      !trimmedTiktokUrl && trimmedText ? extractStandaloneTiktokUrl(trimmedText) : null;
+    const payloadText = autoDetectedInstagramUrl || autoDetectedTiktokUrl ? "" : trimmedText;
     const payloadInstagramUrl = trimmedInstagramUrl || autoDetectedInstagramUrl || "";
+    const payloadTiktokUrl = trimmedTiktokUrl || autoDetectedTiktokUrl || "";
 
-    if (!payloadText && !payloadInstagramUrl) {
-      setError("Paste message text or provide an Instagram URL to analyze.");
+    if (!payloadText && !payloadInstagramUrl && !payloadTiktokUrl) {
+      setError("Paste message text or provide an Instagram or TikTok URL to analyze.");
       return;
     }
 
@@ -112,6 +139,7 @@ export default function Home() {
         body: JSON.stringify({
           text: payloadText || undefined,
           instagram_url: payloadInstagramUrl || undefined,
+          tiktok_url: payloadTiktokUrl || undefined,
           influencer_handle: influencerHandle.trim() || undefined,
           company_name: companyName.trim() || undefined,
           product_name: productName.trim() || undefined,
@@ -162,6 +190,7 @@ export default function Home() {
   function handleClear() {
     setText("");
     setInstagramUrl("");
+    setTiktokUrl("");
     setInfluencerHandle("");
     setCompanyName("");
     setProductName("");
@@ -195,6 +224,7 @@ export default function Home() {
       <InputState
         text={text}
         instagramUrl={instagramUrl}
+        tiktokUrl={tiktokUrl}
         influencerHandle={influencerHandle}
         companyName={companyName}
         productName={productName}
@@ -203,6 +233,7 @@ export default function Home() {
         loading={loading}
         onTextChange={setText}
         onInstagramUrlChange={setInstagramUrl}
+        onTiktokUrlChange={setTiktokUrl}
         onInfluencerHandleChange={setInfluencerHandle}
         onCompanyNameChange={setCompanyName}
         onProductNameChange={setProductName}

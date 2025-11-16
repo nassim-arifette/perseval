@@ -229,9 +229,30 @@ def call_mistral_json(messages: List[dict], *, debug: bool = False) -> dict:
         },
     )
     if resp.status_code != 200:
+        detail_text = resp.text
+        parsed_error = None
+        try:
+            parsed_error = resp.json()
+        except ValueError:
+            parsed_error = None
+
+        if isinstance(parsed_error, dict):
+            error_type = parsed_error.get("type")
+            error_message = parsed_error.get("message") or detail_text
+
+            if error_type == "service_tier_capacity_exceeded":
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "Mistral API capacity for your service tier is temporarily exceeded. "
+                        "Wait a minute and retry, or use a higher tier."
+                    ),
+                )
+            detail_text = error_message
+
         raise HTTPException(
             status_code=resp.status_code,
-            detail=f"Error from Mistral API: {resp.text}",
+            detail=f"Error from Mistral API: {detail_text}",
         )
 
     data = resp.json()
@@ -528,8 +549,8 @@ async def get_tiktok_video_info(url: str) -> dict:
                 num_sessions=1,
                 sleep_after=3,
             )
-            video = await api.video(url=url)
-            data = video.as_dict
+            video = api.video(url=url)
+            data = await video.info()
     except HTTPException:
         raise
     except Exception as exc:  # pragma: no cover - network / TikTok specific

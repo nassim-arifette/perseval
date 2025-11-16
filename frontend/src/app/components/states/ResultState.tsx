@@ -93,6 +93,11 @@ export function ResultState({
               Instagram caption
             </span>
           )}
+          {fullResult.source_details.text_origin === "tiktok" && (
+            <span className="text-[0.55rem] uppercase tracking-[0.35em] text-[#10B981]">
+              TikTok caption
+            </span>
+          )}
         </div>
         <p className="mt-2 leading-relaxed text-slate-700">{previewSnippet}</p>
         {fullResult.source_details.instagram_url && (
@@ -103,6 +108,16 @@ export function ResultState({
             className="mt-2 inline-block text-xs font-semibold text-slate-800 underline-offset-4 hover:underline"
           >
             View original post
+          </a>
+        )}
+        {fullResult.source_details.tiktok_url && (
+          <a
+            href={fullResult.source_details.tiktok_url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 ml-2 inline-block text-xs font-semibold text-slate-800 underline-offset-4 hover:underline"
+          >
+            View TikTok video
           </a>
         )}
       </div>
