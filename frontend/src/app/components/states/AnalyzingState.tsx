@@ -20,7 +20,7 @@ export function AnalyzingState({ previewSnippet, themeTokens, onEdit }: Analyzin
         <button
           type="button"
           onClick={onEdit}
-          className="text-xs font-semibold uppercase tracking-[0.35em] text-[#EA580C] underline-offset-4 hover:underline"
+          className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-700 underline-offset-4 hover:underline"
         >
           Edit
         </button>

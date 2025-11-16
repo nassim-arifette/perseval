@@ -2,18 +2,13 @@
 
 import { useState } from "react";
 
-import type {
-  FullAnalysisResponse,
-  HighlightSegment,
-  ReasonBullet,
-} from "../../lib/types";
+import type { FullAnalysisResponse, ReasonBullet } from "../../lib/types";
 import { severityStyles, type RiskStyle, type ThemeTokens } from "../../lib/constants";
 
 type ResultStateProps = {
   fullResult: FullAnalysisResponse;
   previewSnippet: string;
   reasonBullets: ReasonBullet[];
-  highlightedMessage: HighlightSegment[];
   activeRisk: RiskStyle;
   scorePercent: number | null;
   themeTokens: ThemeTokens;
@@ -24,13 +19,11 @@ export function ResultState({
   fullResult,
   previewSnippet,
   reasonBullets,
-  highlightedMessage,
   activeRisk,
   scorePercent,
   themeTokens,
   onClear,
 }: ResultStateProps) {
-  const [showHighlights, setShowHighlights] = useState(false);
   const [showReasons, setShowReasons] = useState(false);
   const [expandedTrustSection, setExpandedTrustSection] =
     useState<"influencer" | "company" | "product" | null>(null);
@@ -74,7 +67,7 @@ export function ResultState({
                 {activeRisk.badgeText}
               </span>
               <p className="mt-2 text-xl font-semibold text-slate-900">{activeRisk.label}</p>
-              <p className="mt-2 max-w-md text-sm text-slate-700">{activeRisk.summary}</p>
+              <p className="mt-2 max-w-md text-sm text-slate-800">{activeRisk.summary}</p>
             </div>
           </div>
           {overallPercent !== null && (
@@ -107,7 +100,7 @@ export function ResultState({
             href={fullResult.source_details.instagram_url}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 inline-block text-xs font-semibold text-[#EA580C] underline-offset-4 hover:underline"
+            className="mt-2 inline-block text-xs font-semibold text-slate-800 underline-offset-4 hover:underline"
           >
             View original post
           </a>
@@ -118,7 +111,7 @@ export function ResultState({
         <button
           type="button"
           onClick={() => setShowReasons((prev) => !prev)}
-          className="flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-[#EA580C]"
+          className="flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-800"
         >
           Why we said this
           <span>{showReasons ? "-" : "+"}</span>
@@ -147,41 +140,6 @@ export function ResultState({
               </ul>
             ) : (
               <p className={`text-sm ${themeTokens.muted}`}>The model didn&apos;t provide detailed reasons for this run.</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setShowHighlights((prev) => !prev)}
-          className="flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-[#EA580C]"
-        >
-          Show message with highlights
-          <span>{showHighlights ? "-" : "+"}</span>
-        </button>
-        {showHighlights && (
-          <div
-            className={`rounded-2xl border px-4 py-4 text-sm leading-relaxed ${themeTokens.inputBorder} ${themeTokens.inputBg}`}
-          >
-            {highlightedMessage.length > 0 ? (
-              highlightedMessage.map((segment) =>
-                segment.tone ? (
-                  <span
-                    key={segment.key}
-                    className={`rounded px-1 ${
-                      segment.tone === "high" ? "bg-[#7F1D1D]/40 text-[#FECACA]" : "bg-[#713F12]/40 text-[#FDE68A]"
-                    }`}
-                  >
-                    {segment.content}
-                  </span>
-                ) : (
-                  <span key={segment.key}>{segment.content}</span>
-                )
-              )
-            ) : (
-              <p className="text-sm text-slate-500">No risky words to highlight.</p>
             )}
           </div>
         )}
@@ -216,7 +174,7 @@ export function ResultState({
                     </p>
                   )}
                 </div>
-                <span className="text-xl text-[#EA580C]">{showInfluencerDetails ? "-" : "+"}</span>
+                <span className="text-xl text-slate-500">{showInfluencerDetails ? "-" : "+"}</span>
               </button>
               {showInfluencerDetails && (
                 <div className="space-y-3 border-t border-[#E2E8F0] pt-4">
@@ -247,7 +205,7 @@ export function ResultState({
                             href={fullResult.influencer_trust.stats.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-[#EA580C] underline-offset-4 hover:underline"
+                            className="text-slate-800 underline-offset-4 hover:underline"
                           >
                             View Instagram profile
                           </a>
@@ -287,14 +245,14 @@ export function ResultState({
                   </p>
                 )}
               </div>
-              <span className="text-xl text-[#EA580C]">{showCompanyDetails ? "-" : "+"}</span>
+              <span className="text-xl text-slate-500">{showCompanyDetails ? "-" : "+"}</span>
             </button>
             {showCompanyDetails && (
               <div className="space-y-3 border-t border-[#E2E8F0] pt-4">
                 {fullResult.company_trust ? (
                   <>
-                    <p className="text-sm font-semibold text-slate-800">{fullResult.company_trust.name}</p>
-                    <p className="text-sm text-slate-700">{fullResult.company_trust.summary}</p>
+                    <p className="text-sm font-semibold text-slate-900">{fullResult.company_trust.name}</p>
+                    <p className="text-sm text-slate-800">{fullResult.company_trust.summary}</p>
                     {fullResult.company_trust.issues.length > 0 && (
                       <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
                         {fullResult.company_trust.issues.map((issue) => (
@@ -335,14 +293,14 @@ export function ResultState({
                   </p>
                 )}
               </div>
-              <span className="text-xl text-[#EA580C]">{showProductDetails ? "-" : "+"}</span>
+              <span className="text-xl text-slate-500">{showProductDetails ? "-" : "+"}</span>
             </button>
             {showProductDetails && (
               <div className="space-y-3 border-t border-[#E2E8F0] pt-4">
                 {fullResult.product_trust ? (
                   <>
-                    <p className="text-sm font-semibold text-slate-800">{fullResult.product_trust.name}</p>
-                    <p className="text-sm text-slate-700">{fullResult.product_trust.summary}</p>
+                <p className="text-sm font-semibold text-slate-900">{fullResult.product_trust.name}</p>
+                <p className="text-sm text-slate-800">{fullResult.product_trust.summary}</p>
                     {fullResult.product_trust.issues.length > 0 && (
                       <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
                         {fullResult.product_trust.issues.map((issue) => (
@@ -370,7 +328,7 @@ export function ResultState({
       <button
         type="button"
         onClick={onClear}
-        className="text-sm font-semibold text-[#EA580C] underline-offset-4 hover:underline"
+        className="text-sm font-semibold text-slate-800 underline-offset-4 hover:underline"
       >
         Analyze another message
       </button>

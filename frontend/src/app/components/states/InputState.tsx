@@ -80,7 +80,7 @@ export function InputState({
         <button
           type="button"
           onClick={() => setShowOptions((prev) => !prev)}
-          className="flex w-full items-center justify-between text-left text-sm font-semibold text-[#EA580C]"
+          className="flex w-full items-center justify-between text-left text-sm font-semibold text-slate-800"
           aria-expanded={showOptions}
         >
           Additional details (optional)

@@ -17,11 +17,10 @@ import {
 } from "./lib/constants";
 import type {
   FullAnalysisResponse,
-  HighlightSegment,
   ReasonBullet,
   ScamPrediction,
 } from "./lib/types";
-import { buildReasonBullets, clampPercent, deriveRiskTier, highlightText } from "./lib/risk";
+import { buildReasonBullets, clampPercent, deriveRiskTier } from "./lib/risk";
 
 type CardState = "input" | "analyzing" | "result";
 
@@ -85,11 +84,6 @@ export default function Home() {
   const reasonBullets = useMemo<ReasonBullet[]>(
     () => buildReasonBullets(messagePrediction?.reason ?? "", messagePrediction?.label ?? null),
     [messagePrediction?.label, messagePrediction?.reason]
-  );
-
-  const highlightedMessage = useMemo<HighlightSegment[]>(
-    () => (messagePrediction?.raw_post_text ? highlightText(messagePrediction.raw_post_text) : []),
-    [messagePrediction?.raw_post_text]
   );
 
   async function handleAnalyze() {
@@ -233,7 +227,6 @@ export default function Home() {
         fullResult={result}
         previewSnippet={previewSnippet}
         reasonBullets={reasonBullets}
-        highlightedMessage={highlightedMessage}
         activeRisk={activeRisk}
         scorePercent={scorePercent}
         themeTokens={themeTokens}
