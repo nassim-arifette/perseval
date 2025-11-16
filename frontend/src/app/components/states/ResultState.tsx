@@ -32,10 +32,7 @@ export function ResultState({
 }: ResultStateProps) {
   const [showHighlights, setShowHighlights] = useState(false);
 
-  const baseScore = fullResult.message_prediction.score;
-  const overallPercent = Number.isFinite(baseScore)
-    ? Math.round(Math.min(Math.max(baseScore, 0), 1) * 100)
-    : null;
+  const overallPercent = scorePercent;
   const messageLabel = fullResult.message_prediction.label;
   const overallTone =
     messageLabel === "scam"
@@ -46,29 +43,43 @@ export function ResultState({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <p className="text-center text-xs uppercase tracking-[0.35em] text-slate-500">Overall assessment</p>
-        <div className="flex items-center justify-center gap-4">
-          <div
-            className={`flex h-16 w-16 items-center justify-center rounded-full border-4 text-lg font-semibold ${overallTone}`}
-          >
-            {overallPercent !== null ? `${overallPercent}%` : "–"}
+      <section className="space-y-3">
+        <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Overall assessment</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div
+              className={`relative flex h-16 w-16 items-center justify-center rounded-full border-4 text-lg font-semibold ${overallTone}`}
+            >
+              {overallPercent !== null ? `${overallPercent}%` : "–"}
+            </div>
+            <div>
+              <span
+                className={`badge-pop inline-flex items-center rounded-full px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.25em] ${activeRisk.chip}`}
+              >
+                {activeRisk.badgeText}
+              </span>
+              <p className="mt-2 text-xl font-semibold text-slate-900">{activeRisk.label}</p>
+              <p className="mt-2 max-w-md text-sm text-slate-700">{activeRisk.summary}</p>
+            </div>
           </div>
-          <div className="text-left">
-            <span className="text-xs uppercase tracking-[0.35em] text-[#B45309]">
-              {activeRisk.badgeText}
-            </span>
-            <p className="mt-1 text-xl font-semibold uppercase tracking-wide text-slate-900">
-              {activeRisk.label}
-            </p>
-            <p className="mt-2 text-sm text-slate-700">{activeRisk.summary}</p>
-          </div>
+          {overallPercent !== null && (
+            <div className="w-full max-w-[200px] space-y-2 text-xs text-slate-600">
+              <p className="font-semibold uppercase tracking-[0.25em] text-slate-500">Confidence</p>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className={`h-full rounded-full bg-gradient-to-r ${activeRisk.gradient}`}
+                  style={{ width: `${overallPercent}%` }}
+                />
+              </div>
+              <p className="text-[0.7rem] leading-relaxed">{activeRisk.meterCopy}</p>
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
       <div className={`rounded-2xl border ${themeTokens.inputBorder} ${themeTokens.inputBg} px-4 py-3 text-sm`}>
         <div className="flex items-center justify-between text-xs uppercase tracking-[0.35em] text-slate-500">
-          <span>Message preview</span>
+          <span>Message we analyzed</span>
           {fullResult.source_details.text_origin === "instagram" && (
             <span className="text-[0.55rem] uppercase tracking-[0.35em] text-[#F97316]">
               Instagram caption
@@ -97,7 +108,7 @@ export function ResultState({
               return (
                 <li
                   key={bullet.text}
-                  className={`bullet-rise flex items-start gap-3 rounded-2xl border ${themeTokens.surfaceBorder} px-4 py-3 text-sm`}
+                  className={`bullet-rise relative flex items-start gap-3 rounded-2xl border ${themeTokens.surfaceBorder} px-4 py-3 text-sm before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:rounded-full before:content-[''] ${severity.accent}`}
                   style={{ animationDelay: `${index * 80}ms` }}
                 >
                   <span
@@ -150,71 +161,77 @@ export function ResultState({
         )}
       </div>
 
-      {fullResult.influencer_trust && (
-        <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Influencer trust</p>
-            <p className="text-lg font-semibold text-slate-900">
-              {(fullResult.influencer_trust.trust_score * 100).toFixed(0)}%{" "}
-              <span className="text-sm uppercase text-slate-500">({fullResult.influencer_trust.label})</span>
-            </p>
-          </div>
-          <p className="text-sm text-slate-700">{fullResult.influencer_trust.notes}</p>
-          <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
-            <TrustStat label="Message history" value={fullResult.influencer_trust.message_history_score} />
-            <TrustStat label="Followers" value={fullResult.influencer_trust.followers_score} />
-            <TrustStat label="Web reputation" value={fullResult.influencer_trust.web_reputation_score} />
-          </div>
-          <div className="space-y-1 text-xs text-slate-500">
-            <p>
-              Followers:{" "}
-              <span className="font-semibold text-slate-800">
-                {fullResult.influencer_trust.stats.followers?.toLocaleString() ?? "–"}
-              </span>
-            </p>
-            {fullResult.influencer_trust.stats.url && (
-              <a
-                href={fullResult.influencer_trust.stats.url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#EA580C] underline-offset-4 hover:underline"
-              >
-                View Instagram profile
-              </a>
+      {(fullResult.influencer_trust ||
+        fullResult.company_trust ||
+        fullResult.source_details.inferred_company_name) && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {fullResult.influencer_trust && (
+            <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Influencer trust</p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {(fullResult.influencer_trust.trust_score * 100).toFixed(0)}%{" "}
+                  <span className="text-sm uppercase text-slate-500">({fullResult.influencer_trust.label})</span>
+                </p>
+              </div>
+              <p className="text-sm text-slate-700">{fullResult.influencer_trust.notes}</p>
+              <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                <TrustStat label="Message history" value={fullResult.influencer_trust.message_history_score} />
+                <TrustStat label="Followers" value={fullResult.influencer_trust.followers_score} />
+                <TrustStat label="Web reputation" value={fullResult.influencer_trust.web_reputation_score} />
+              </div>
+              <div className="space-y-1 text-xs text-slate-500">
+                <p>
+                  Followers:{" "}
+                  <span className="font-semibold text-slate-800">
+                    {fullResult.influencer_trust.stats.followers?.toLocaleString() ?? "–"}
+                  </span>
+                </p>
+                {fullResult.influencer_trust.stats.url && (
+                  <a
+                    href={fullResult.influencer_trust.stats.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#EA580C] underline-offset-4 hover:underline"
+                  >
+                    View Instagram profile
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Company reputation</p>
+              {fullResult.company_trust && (
+                <p className="text-lg font-semibold text-slate-900">
+                  {(fullResult.company_trust.trust_score * 100).toFixed(0)}%
+                </p>
+              )}
+            </div>
+            {fullResult.company_trust ? (
+              <>
+                <p className="text-sm font-semibold text-slate-800">{fullResult.company_trust.name}</p>
+                <p className="text-sm text-slate-700">{fullResult.company_trust.summary}</p>
+                {fullResult.company_trust.issues.length > 0 && (
+                  <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
+                    {fullResult.company_trust.issues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-slate-600">
+                {fullResult.source_details.inferred_company_name
+                  ? `We detected "${fullResult.source_details.inferred_company_name}" in the message, but there was not enough data to build a reputation snapshot.`
+                  : "No clear company or product was detected in this message, so the reputation step was skipped."}
+              </p>
             )}
           </div>
         </div>
       )}
-
-      <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
-        <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Company reputation</p>
-          {fullResult.company_trust && (
-            <p className="text-lg font-semibold text-slate-900">
-              {(fullResult.company_trust.trust_score * 100).toFixed(0)}%
-            </p>
-          )}
-        </div>
-        {fullResult.company_trust ? (
-          <>
-            <p className="text-sm font-semibold text-slate-800">{fullResult.company_trust.name}</p>
-            <p className="text-sm text-slate-700">{fullResult.company_trust.summary}</p>
-            {fullResult.company_trust.issues.length > 0 && (
-              <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
-                {fullResult.company_trust.issues.map((issue) => (
-                  <li key={issue}>{issue}</li>
-                ))}
-              </ul>
-            )}
-          </>
-        ) : (
-          <p className="text-sm text-slate-600">
-            {fullResult.source_details.inferred_company_name
-              ? `We detected "${fullResult.source_details.inferred_company_name}" in the message, but there was not enough data to build a reputation snapshot.`
-              : "No clear company or product was detected in this message, so the reputation step was skipped."}
-          </p>
-        )}
-      </div>
 
       <p className="text-xs text-slate-600">{fullResult.final_summary}</p>
       <p className="text-xs text-slate-600">Never send money to strangers promising returns.</p>
