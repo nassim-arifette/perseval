@@ -10,6 +10,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, HttpUrl
 
 try:
+    # Optional dependency used for TikTok URL support
+    from TikTokApi import TikTokApi  # type: ignore
+except ImportError:  # pragma: no cover - optional feature
+    TikTokApi = None  # type: ignore
+
+try:
     from backend.influencer_probe import (
         get_instagram_post_from_url,
         get_instagram_stats,
@@ -117,9 +123,11 @@ class ProductTrustResponse(BaseModel):
 
 
 class FullAnalysisSource(BaseModel):
-    text_origin: Literal["input", "instagram"]
+    text_origin: Literal["input", "instagram", "tiktok"]
     instagram_url: Optional[str] = None
     instagram_owner: Optional[str] = None
+    tiktok_url: Optional[str] = None
+    tiktok_author: Optional[str] = None
     inferred_company_name: Optional[str] = None
     inferred_product_name: Optional[str] = None
 
@@ -144,6 +152,10 @@ class FullAnalysisRequest(BaseModel):
     product_name: Optional[str] = Field(
         None,
         description="Product name to check via web reputation search.",
+    )
+    tiktok_url: Optional[HttpUrl] = Field(
+        None,
+        description="TikTok video URL to fetch caption from.",
     )
     max_posts: int = Field(
         5,
@@ -482,6 +494,61 @@ Respond ONLY as JSON:
     return call_mistral_json(messages)
 
 
+async def get_tiktok_video_info(url: str) -> dict:
+    """
+    Fetch basic info for a TikTok video using TikTokApi.
+
+    Returns a dict with at least:
+        - caption: str
+        - username: Optional[str]
+        - nickname: Optional[str]
+        - followers: Optional[int]
+        - verified: bool
+    """
+    if TikTokApi is None:  # type: ignore[name-defined]
+        raise HTTPException(
+            status_code=500,
+            detail="TikTok support is not available. Install the 'TikTokApi' package to enable it.",
+        )
+
+    ms_token = os.environ.get("TIKTOK_MS_TOKEN") or os.environ.get("ms_token")
+    if not ms_token:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Missing TikTok session cookie. Set TIKTOK_MS_TOKEN (or ms_token) "
+                "in the backend environment to enable TikTok URL analysis."
+            ),
+        )
+
+    try:
+        async with TikTokApi() as api:  # type: ignore[operator]
+            await api.create_sessions(
+                ms_tokens=[ms_token],
+                num_sessions=1,
+                sleep_after=3,
+            )
+            video = await api.video(url=url)
+            data = video.as_dict
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - network / TikTok specific
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to fetch TikTok video: {exc}",
+        ) from exc
+
+    author = data.get("author") or {}
+    stats = author.get("stats") or {}
+    return {
+        "caption": data.get("desc", "") or "",
+        "username": author.get("uniqueId"),
+        "nickname": author.get("nickname"),
+        "followers": stats.get("followerCount"),
+        "verified": bool(author.get("verified", False)),
+    }
+
+
 def evaluate_product_reputation(name: str, snippets: List[dict]) -> dict:
     if not snippets:
         return {
@@ -783,6 +850,12 @@ async def analyze_full(req: FullAnalysisRequest):
     influencer_handle = (req.influencer_handle or "").strip() or None
     source_details: FullAnalysisSource = FullAnalysisSource(text_origin="input")
 
+    if req.instagram_url and req.tiktok_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either an Instagram URL or a TikTok URL, not both.",
+        )
+
     if req.instagram_url:
         try:
             post = get_instagram_post_from_url(str(req.instagram_url))
@@ -810,10 +883,35 @@ async def analyze_full(req: FullAnalysisRequest):
         if not influencer_handle:
             influencer_handle = post.owner_username
 
+    if req.tiktok_url:
+        try:
+            video_info = await get_tiktok_video_info(str(req.tiktok_url))
+        except HTTPException:
+            raise
+        except Exception as exc:  # pragma: no cover
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to fetch TikTok video: {exc}",
+            ) from exc
+
+        caption = (video_info.get("caption") or "").strip()
+        source_details = FullAnalysisSource(
+            text_origin="tiktok",
+            tiktok_url=str(req.tiktok_url),
+            tiktok_author=video_info.get("username"),
+        )
+        if caption:
+            text = caption
+        elif not text:
+            raise HTTPException(
+                status_code=400,
+                detail="TikTok video has no caption and no fallback text was provided.",
+            )
+
     if not text:
         raise HTTPException(
             status_code=400,
-            detail="Provide either message text or an Instagram URL.",
+            detail="Provide message text, an Instagram URL, or a TikTok URL.",
         )
 
     prediction = mistral_scam_check(text, debug=False)
