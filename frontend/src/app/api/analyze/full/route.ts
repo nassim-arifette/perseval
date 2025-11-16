@@ -20,6 +20,10 @@ export async function POST(request: Request) {
       typeof payload?.company_name === "string"
         ? payload.company_name.trim()
         : undefined;
+    const productName =
+      typeof payload?.product_name === "string"
+        ? payload.product_name.trim()
+        : undefined;
     const maxPosts =
       typeof payload?.max_posts === "number" && Number.isFinite(payload.max_posts)
         ? Math.min(Math.max(Math.trunc(payload.max_posts), 1), 20)
@@ -28,6 +32,11 @@ export async function POST(request: Request) {
       typeof payload?.company_max_results === "number" &&
       Number.isFinite(payload.company_max_results)
         ? Math.min(Math.max(Math.trunc(payload.company_max_results), 1), 20)
+        : 8;
+    const productMaxResults =
+      typeof payload?.product_max_results === "number" &&
+      Number.isFinite(payload.product_max_results)
+        ? Math.min(Math.max(Math.trunc(payload.product_max_results), 1), 20)
         : 8;
 
     if (!text && !instagramUrl) {
@@ -47,8 +56,10 @@ export async function POST(request: Request) {
           instagram_url: instagramUrl,
           influencer_handle: influencerHandle,
           company_name: companyName,
+          product_name: productName,
           max_posts: maxPosts,
           company_max_results: companyMaxResults,
+          product_max_results: productMaxResults,
         }),
         cache: "no-store",
       },

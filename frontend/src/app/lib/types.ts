@@ -45,17 +45,26 @@ export type CompanyTrustResponse = {
   issues: string[];
 };
 
+export type ProductTrustResponse = {
+  name: string;
+  trust_score: number;
+  summary: string;
+  issues: string[];
+};
+
 export type FullAnalysisSourceDetails = {
   text_origin: "input" | "instagram";
   instagram_url?: string | null;
   instagram_owner?: string | null;
   inferred_company_name?: string | null;
+  inferred_product_name?: string | null;
 };
 
 export type FullAnalysisResponse = {
   message_prediction: ScamPrediction;
   influencer_trust?: InfluencerTrustResponse | null;
   company_trust?: CompanyTrustResponse | null;
+  product_trust?: ProductTrustResponse | null;
   source_details: FullAnalysisSourceDetails;
   final_summary: string;
 };

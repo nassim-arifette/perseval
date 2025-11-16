@@ -98,11 +98,29 @@ class CompanyTrustResponse(BaseModel):
     issues: List[str] = Field(default_factory=list)
 
 
+class ProductTrustRequest(BaseModel):
+    name: str = Field(..., min_length=2, description="Product name to investigate.")
+    max_results: int = Field(
+        8,
+        ge=1,
+        le=20,
+        description="How many Serper search snippets to consider.",
+    )
+
+
+class ProductTrustResponse(BaseModel):
+    name: str
+    trust_score: float = Field(..., ge=0.0, le=1.0)
+    summary: str
+    issues: List[str] = Field(default_factory=list)
+
+
 class FullAnalysisSource(BaseModel):
     text_origin: Literal["input", "instagram"]
     instagram_url: Optional[str] = None
     instagram_owner: Optional[str] = None
     inferred_company_name: Optional[str] = None
+    inferred_product_name: Optional[str] = None
 
 
 class FullAnalysisRequest(BaseModel):
@@ -120,7 +138,11 @@ class FullAnalysisRequest(BaseModel):
     )
     company_name: Optional[str] = Field(
         None,
-        description="Company or product name to check via web reputation search.",
+        description="Company name to check via web reputation search.",
+    )
+    product_name: Optional[str] = Field(
+        None,
+        description="Product name to check via web reputation search.",
     )
     max_posts: int = Field(
         5,
@@ -134,12 +156,19 @@ class FullAnalysisRequest(BaseModel):
         le=20,
         description="How many Serper snippets to consider for company reputation.",
     )
+    product_max_results: int = Field(
+        8,
+        ge=1,
+        le=20,
+        description="How many Serper snippets to consider for product reliability.",
+    )
 
 
 class FullAnalysisResponse(BaseModel):
     message_prediction: ScamPrediction
     influencer_trust: Optional[InfluencerTrustResponse] = None
     company_trust: Optional[CompanyTrustResponse] = None
+    product_trust: Optional[ProductTrustResponse] = None
     source_details: FullAnalysisSource
     final_summary: str
 
@@ -354,6 +383,16 @@ def get_company_snippets(name: str, max_results: int = 8) -> List[dict]:
     return fetch_snippets_from_queries(queries, max_results)
 
 
+def get_product_snippets(name: str, max_results: int = 8) -> List[dict]:
+    queries = [
+        f'"{name}" product reviews',
+        f'"{name}" complaints',
+        f'"{name}" scam',
+        f'"{name}" safety issues',
+    ]
+    return fetch_snippets_from_queries(queries, max_results)
+
+
 def get_influencer_snippets(
     handle: str,
     full_name: Optional[str],
@@ -404,6 +443,41 @@ Respond ONLY as JSON:
             "role": "user",
             "content": json.dumps(
                 {"company": name, "snippets": snippets},
+                ensure_ascii=False,
+            ),
+        },
+    ]
+    return call_mistral_json(messages)
+
+
+def evaluate_product_reputation(name: str, snippets: List[dict]) -> dict:
+    if not snippets:
+        return {
+            "product_reliability": 0.5,
+            "issues": ["Insufficient public data"],
+            "summary": "No meaningful search results to evaluate reputation.",
+        }
+
+    system_prompt = """
+You review public web snippets about a consumer product or offer.
+
+Given titles/snippets from search results, answer:
+- Are there credible reports of defects, scams, unsafe ingredients, or lawsuits?
+- Rate reliability between 0 and 1 (1 = very reliable, 0 = clearly untrustworthy).
+
+Respond ONLY as JSON:
+{
+  "product_reliability": 0-1 float,
+  "issues": [list of notable problems or an empty list],
+  "summary": "short explanation"
+}
+""".strip()
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": json.dumps(
+                {"product": name, "snippets": snippets},
                 ensure_ascii=False,
             ),
         },
@@ -544,6 +618,24 @@ def build_company_trust_response(
     )
 
 
+def build_product_trust_response(
+    name: str,
+    max_results: int,
+) -> ProductTrustResponse:
+    snippets = get_product_snippets(name, max_results=max_results)
+    reputation = evaluate_product_reputation(name, snippets)
+    trust_score = float(reputation.get("product_reliability", 0.5))
+    summary = reputation.get("summary") or "Insufficient public data."
+    issues = reputation.get("issues") or []
+
+    return ProductTrustResponse(
+        name=name,
+        trust_score=trust_score,
+        summary=summary,
+        issues=issues,
+    )
+
+
 # ---------- API endpoints ----------
 
 @app.post("/analyze/text", response_model=ScamPrediction)
@@ -612,6 +704,18 @@ def company_trust(req: CompanyTrustRequest):
     return build_company_trust_response(name, max_results=req.max_results)
 
 
+@app.post("/product/trust", response_model=ProductTrustResponse)
+def product_trust(req: ProductTrustRequest):
+    """
+    Use Serper + Mistral to estimate product-level reliability.
+    """
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Product name cannot be empty.")
+
+    return build_product_trust_response(name, max_results=req.max_results)
+
+
 @app.get("/")
 def root():
     return {"status": "ok", "message": "Scam checker API running"}
@@ -677,10 +781,18 @@ async def analyze_full(req: FullAnalysisRequest):
             ) from exc
 
     inferred_company = None
+    inferred_product = None
     company_name = (req.company_name or "").strip() or None
-    if not company_name:
-        inferred_company = detect_company_from_text(text)
-        company_name = inferred_company
+    product_name = (req.product_name or "").strip() or None
+    detected_candidate = None
+    if not company_name or not product_name:
+        detected_candidate = detect_company_from_text(text)
+    if not company_name and detected_candidate:
+        inferred_company = detected_candidate
+        company_name = detected_candidate
+    if not product_name and detected_candidate:
+        inferred_product = detected_candidate
+        product_name = detected_candidate
     company_trust = None
     if company_name:
         try:
@@ -693,7 +805,20 @@ async def analyze_full(req: FullAnalysisRequest):
                 status_code=502,
                 detail=f"Failed to build company trust: {exc}",
             ) from exc
+    product_trust = None
+    if product_name:
+        try:
+            product_trust = build_product_trust_response(
+                product_name,
+                max_results=req.product_max_results,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to build product trust: {exc}",
+            ) from exc
     source_details.inferred_company_name = inferred_company
+    source_details.inferred_product_name = inferred_product
 
     summary_parts: List[str] = []
     summary_parts.append(
@@ -709,7 +834,13 @@ async def analyze_full(req: FullAnalysisRequest):
         )
     elif company_name:
         summary_parts.append(f"Company mentioned ({company_name}) but reputation lookup failed.")
-    else:
+    if product_trust:
+        summary_parts.append(
+            f"Product reliability ({product_name}): {int(product_trust.trust_score * 100)}%. {product_trust.summary}"
+        )
+    elif product_name:
+        summary_parts.append(f"Product mentioned ({product_name}) but reliability lookup failed.")
+    if not company_name and not product_name:
         summary_parts.append("No clear company or product was detected in the content.")
     final_summary = " ".join(summary_parts).strip()
 
@@ -717,6 +848,7 @@ async def analyze_full(req: FullAnalysisRequest):
         message_prediction=prediction,
         influencer_trust=influencer_trust,
         company_trust=company_trust,
+        product_trust=product_trust,
         source_details=source_details,
         final_summary=final_summary,
     )

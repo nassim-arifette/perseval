@@ -46,13 +46,13 @@ export function ResultState({
       <section className="space-y-3">
         <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Overall assessment</p>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             <div
-              className={`relative flex h-16 w-16 items-center justify-center rounded-full border-4 text-lg font-semibold ${overallTone}`}
+              className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 text-lg font-semibold ${overallTone}`}
             >
               {overallPercent !== null ? `${overallPercent}%` : "–"}
             </div>
-            <div>
+            <div className="min-w-0">
               <span
                 className={`badge-pop inline-flex items-center rounded-full px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.25em] ${activeRisk.chip}`}
               >
@@ -163,7 +163,9 @@ export function ResultState({
 
       {(fullResult.influencer_trust ||
         fullResult.company_trust ||
-        fullResult.source_details.inferred_company_name) && (
+        fullResult.product_trust ||
+        fullResult.source_details.inferred_company_name ||
+        fullResult.source_details.inferred_product_name) && (
         <div className="grid gap-3 md:grid-cols-2">
           {fullResult.influencer_trust && (
             <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
@@ -230,6 +232,36 @@ export function ResultState({
               </p>
             )}
           </div>
+
+          <div className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-sm shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.35em] text-[#94A3B8]">Product reliability</p>
+              {fullResult.product_trust && (
+                <p className="text-lg font-semibold text-slate-900">
+                  {(fullResult.product_trust.trust_score * 100).toFixed(0)}%
+                </p>
+              )}
+            </div>
+            {fullResult.product_trust ? (
+              <>
+                <p className="text-sm font-semibold text-slate-800">{fullResult.product_trust.name}</p>
+                <p className="text-sm text-slate-700">{fullResult.product_trust.summary}</p>
+                {fullResult.product_trust.issues.length > 0 && (
+                  <ul className="list-disc space-y-1 pl-5 text-xs text-[#7F1D1D]">
+                    {fullResult.product_trust.issues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-slate-600">
+                {fullResult.source_details.inferred_product_name
+                  ? `We detected "${fullResult.source_details.inferred_product_name}" but there was not enough data to build a product reliability snapshot.`
+                  : "No clear product was detected in this message, so the reliability step was skipped."}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -255,15 +287,15 @@ function TrustStat({ label, value }: { label: string; value: number }) {
     "bg-rose-100 text-rose-800 border-rose-200";
 
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+    <div className="flex flex-col items-center gap-2 rounded-xl bg-slate-50 px-3 py-3 text-center">
       <div
         className={`flex h-10 w-10 items-center justify-center rounded-full border text-xs font-semibold ${tone}`}
       >
         {pct.toFixed(0)}%
       </div>
-      <div>
-        <p className="uppercase tracking-widest text-[0.6rem] text-slate-500">{label}</p>
-      </div>
+      <p className="uppercase tracking-widest text-[0.6rem] text-slate-500 leading-tight">
+        {label}
+      </p>
     </div>
   );
 }
