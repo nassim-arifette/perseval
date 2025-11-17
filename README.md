@@ -1,10 +1,10 @@
 # Perseval – Scam & Trust Checker
 
-Perseval is a full‑stack tool that helps you quickly assess whether a social media promotion looks like a scam and how much you can trust the people and brands behind it.
+Perseval is a full‑stack AI-powered tool that helps you quickly assess whether a social media promotion looks like a scam and how much you can trust the people and brands behind it.
 
 The project has:
-- a FastAPI backend (`backend/`) that talks to Mistral and Serper.dev, inspects Instagram posts, and computes trust scores
-- a Next.js frontend (`frontend/`) that provides a one‑page UI for pasting messages or URLs and visualizing risk
+- **Backend** (`backend/`): FastAPI server that integrates with Mistral AI and Serper.dev to analyze messages, inspect Instagram/TikTok posts, and compute comprehensive trust scores
+- **Frontend** (`frontend/`): Modern Next.js application with an intuitive UI featuring dark/light themes, interactive analytics dashboard, and detailed analysis history
 
 ---
 

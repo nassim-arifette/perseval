@@ -22,3 +22,7 @@ Thumbs.db
 
 export_project_snapshot.py
 project_snapshot.txt
+
+temp.txt
+
+.claude/

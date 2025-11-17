@@ -214,7 +214,7 @@ def call_mistral_json(messages: List[dict], *, debug: bool = False) -> dict:
     Shared helper to send chat prompts expecting a JSON object back.
     """
     payload = {
-        "model": "open-mixtral-8x22b",
+        "model": "mistral-medium-latest",
         "response_format": {"type": "json_object"},
         "messages": messages,
         "temperature": 0.2,
