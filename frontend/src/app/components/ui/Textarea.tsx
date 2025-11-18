@@ -53,14 +53,7 @@ export function Textarea({
         </div>
       )}
 
-      <motion.textarea
-        animate={{
-          borderColor: isFocused
-            ? colors.border.focus
-            : error
-            ? colors.accent.danger
-            : colors.border.default,
-        }}
+      <textarea
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         value={value}

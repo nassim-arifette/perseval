@@ -139,7 +139,7 @@ export default function MarketplacePage() {
                   onChange={(e) => setTrustFilter(e.target.value as any)}
                   className="w-full px-4 py-3 rounded-xl border outline-none transition-all"
                   style={{
-                    backgroundColor: colors.background.input,
+                    backgroundColor: colors.background.card,
                     borderColor: colors.border.default,
                     color: colors.text.primary,
                   }}
@@ -158,7 +158,7 @@ export default function MarketplacePage() {
                   onChange={(e) => setSortBy(e.target.value as any)}
                   className="w-full px-4 py-3 rounded-xl border outline-none transition-all"
                   style={{
-                    backgroundColor: colors.background.input,
+                    backgroundColor: colors.background.card,
                     borderColor: colors.border.default,
                     color: colors.text.primary,
                   }}
@@ -460,12 +460,12 @@ export default function MarketplacePage() {
                     Trust Score Breakdown
                   </h3>
                   <div className="space-y-3">
-                    {selectedInfluencer.message_history_score !== null && (
+                    {selectedInfluencer.message_history_score !== null && selectedInfluencer.message_history_score !== undefined && (
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm" style={{ color: colors.text.secondary }}>Message History</span>
                           <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
-                            {(selectedInfluencer.message_history_score * 100).toFixed(0)}%
+                            {((selectedInfluencer.message_history_score ?? 0) * 100).toFixed(0)}%
                           </span>
                         </div>
                         <div className="h-2 rounded-full" style={{ backgroundColor: colors.border.default }}>
@@ -473,17 +473,17 @@ export default function MarketplacePage() {
                             className="h-full rounded-full"
                             style={{ backgroundColor: colors.accent.info }}
                             initial={{ width: 0 }}
-                            animate={{ width: `${selectedInfluencer.message_history_score * 100}%` }}
+                            animate={{ width: `${(selectedInfluencer.message_history_score ?? 0) * 100}%` }}
                           />
                         </div>
                       </div>
                     )}
-                    {selectedInfluencer.followers_score !== null && (
+                    {selectedInfluencer.followers_score !== null && selectedInfluencer.followers_score !== undefined && (
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm" style={{ color: colors.text.secondary }}>Followers Score</span>
                           <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
-                            {(selectedInfluencer.followers_score * 100).toFixed(0)}%
+                            {((selectedInfluencer.followers_score ?? 0) * 100).toFixed(0)}%
                           </span>
                         </div>
                         <div className="h-2 rounded-full" style={{ backgroundColor: colors.border.default }}>
@@ -491,17 +491,17 @@ export default function MarketplacePage() {
                             className="h-full rounded-full"
                             style={{ backgroundColor: colors.accent.info }}
                             initial={{ width: 0 }}
-                            animate={{ width: `${selectedInfluencer.followers_score * 100}%` }}
+                            animate={{ width: `${(selectedInfluencer.followers_score ?? 0) * 100}%` }}
                           />
                         </div>
                       </div>
                     )}
-                    {selectedInfluencer.web_reputation_score !== null && (
+                    {selectedInfluencer.web_reputation_score !== null && selectedInfluencer.web_reputation_score !== undefined && (
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm" style={{ color: colors.text.secondary }}>Web Reputation</span>
                           <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
-                            {(selectedInfluencer.web_reputation_score * 100).toFixed(0)}%
+                            {((selectedInfluencer.web_reputation_score ?? 0) * 100).toFixed(0)}%
                           </span>
                         </div>
                         <div className="h-2 rounded-full" style={{ backgroundColor: colors.border.default }}>
@@ -509,17 +509,17 @@ export default function MarketplacePage() {
                             className="h-full rounded-full"
                             style={{ backgroundColor: colors.accent.info }}
                             initial={{ width: 0 }}
-                            animate={{ width: `${selectedInfluencer.web_reputation_score * 100}%` }}
+                            animate={{ width: `${(selectedInfluencer.web_reputation_score ?? 0) * 100}%` }}
                           />
                         </div>
                       </div>
                     )}
-                    {selectedInfluencer.disclosure_score !== null && (
+                    {selectedInfluencer.disclosure_score !== null && selectedInfluencer.disclosure_score !== undefined && (
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm" style={{ color: colors.text.secondary }}>Disclosure Score</span>
                           <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
-                            {(selectedInfluencer.disclosure_score * 100).toFixed(0)}%
+                            {((selectedInfluencer.disclosure_score ?? 0) * 100).toFixed(0)}%
                           </span>
                         </div>
                         <div className="h-2 rounded-full" style={{ backgroundColor: colors.border.default }}>
@@ -527,7 +527,7 @@ export default function MarketplacePage() {
                             className="h-full rounded-full"
                             style={{ backgroundColor: colors.accent.info }}
                             initial={{ width: 0 }}
-                            animate={{ width: `${selectedInfluencer.disclosure_score * 100}%` }}
+                            animate={{ width: `${(selectedInfluencer.disclosure_score ?? 0) * 100}%` }}
                           />
                         </div>
                       </div>

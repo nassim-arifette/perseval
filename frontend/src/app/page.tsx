@@ -818,7 +818,8 @@ export default function Home() {
                 analyzedEntity={
                   result.influencer_trust?.stats?.handle ||
                   result.source_details?.inferred_company_name ||
-                  result.source_details?.inferred_product_name
+                  result.source_details?.inferred_product_name ||
+                  undefined
                 }
                 onSubmitSuccess={() => {
                   console.log('Feedback submitted successfully');
