@@ -348,10 +348,10 @@ def get_marketplace_influencer(handle: str, platform: str = "instagram") -> Opti
 
         # SECURITY: Select only public columns, exclude admin_notes
         public_columns = (
-            "id,handle,display_name,platform,followers_count,is_verified,"
+            "id,handle,display_name,platform,followers_count,following_count,posts_count,is_verified,"
             "overall_trust_score,trust_label,message_history_score,"
             "followers_score,web_reputation_score,disclosure_score,"
-            "profile_picture_url,bio,is_featured,category,last_analyzed_at,"
+            "profile_url,bio,is_featured,analysis_summary,issues,last_analyzed_at,"
             "created_at,updated_at"
         )
 
@@ -398,10 +398,10 @@ def list_marketplace_influencers(
         # Start building query
         # SECURITY: Select only public columns, exclude admin_notes
         public_columns = (
-            "id,handle,display_name,platform,followers_count,is_verified,"
+            "id,handle,display_name,platform,followers_count,following_count,posts_count,is_verified,"
             "overall_trust_score,trust_label,message_history_score,"
             "followers_score,web_reputation_score,disclosure_score,"
-            "profile_picture_url,bio,is_featured,category,last_analyzed_at,"
+            "profile_url,bio,is_featured,analysis_summary,issues,last_analyzed_at,"
             "created_at,updated_at"
         )
         query = supabase_client.table("marketplace_influencers").select(
