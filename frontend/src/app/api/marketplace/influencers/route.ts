@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_API_BASE_URL =
-  process.env.BACKEND_API_BASE_URL ?? "http://localhost:5371";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:5371";
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const search = url.searchParams.toString();
-    const backendUrl = `${BACKEND_API_BASE_URL}/marketplace/influencers${
+    const backendUrl = `${BACKEND_URL}/marketplace/influencers${
       search ? `?${search}` : ""
     }`;
 
