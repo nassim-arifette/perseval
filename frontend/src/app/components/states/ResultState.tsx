@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type { FullAnalysisResponse, ReasonBullet } from "../../lib/types";
 import { severityStyles, type RiskStyle, type ThemeTokens } from "../../lib/constants";
+import FeedbackForm from "../FeedbackForm";
 
 type ResultStateProps = {
   fullResult: FullAnalysisResponse;
@@ -339,6 +340,21 @@ export function ResultState({
 
       <p className="text-xs text-slate-600">{fullResult.final_summary}</p>
       <p className="text-xs text-slate-600">Never send money to strangers promising returns.</p>
+
+      {/* Feedback Form */}
+      <div className="mt-8 pt-6 border-t border-slate-200">
+        <FeedbackForm
+          analysisType="full"
+          analyzedEntity={
+            influencerHandleCopy ||
+            fullResult.source_details.inferred_company_name ||
+            fullResult.source_details.inferred_product_name
+          }
+          onSubmitSuccess={() => {
+            console.log('Feedback submitted successfully');
+          }}
+        />
+      </div>
 
       <button
         type="button"

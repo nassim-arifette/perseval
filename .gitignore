@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 .env
 
+backend/.env
+
 # FastAPI / build artifacts
 backend/.mypy_cache/
 backend/.pytest_cache/

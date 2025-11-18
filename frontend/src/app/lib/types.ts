@@ -71,3 +71,45 @@ export type FullAnalysisResponse = {
   source_details: FullAnalysisSourceDetails;
   final_summary: string;
 };
+
+// Marketplace types
+export type MarketplacePlatform =
+  | "instagram"
+  | "tiktok"
+  | "youtube"
+  | "twitch"
+  | "x"
+  | "facebook"
+  | "podcast";
+
+export type MarketplaceInfluencer = {
+  id: string;
+  handle: string;
+  platform: MarketplacePlatform;
+  display_name?: string | null;
+  bio?: string | null;
+  profile_url?: string | null;
+  followers_count?: number | null;
+  following_count?: number | null;
+  posts_count?: number | null;
+  is_verified: boolean;
+  overall_trust_score: number;
+  trust_label: "high" | "medium" | "low";
+  message_history_score?: number | null;
+  followers_score?: number | null;
+  web_reputation_score?: number | null;
+  disclosure_score?: number | null;
+  analysis_summary?: string | null;
+  issues: string[];
+  last_analyzed_at: string;
+  added_to_marketplace_at: string;
+  is_featured: boolean;
+  admin_notes?: string | null;
+};
+
+export type MarketplaceListResponse = {
+  influencers: MarketplaceInfluencer[];
+  total: number;
+  limit: number;
+  offset: number;
+};

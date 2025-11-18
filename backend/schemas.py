@@ -2,7 +2,7 @@
 
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, EmailStr, Field, HttpUrl, field_validator
 
 
 class TextAnalyzeRequest(BaseModel):
@@ -152,3 +152,142 @@ class FullAnalysisResponse(BaseModel):
     source_details: FullAnalysisSource
     final_summary: str
 
+
+# Marketplace schemas
+MarketplacePlatform = Literal[
+    "instagram",
+    "tiktok",
+    "youtube",
+    "twitch",
+    "x",
+    "facebook",
+    "podcast",
+]
+
+
+class MarketplaceInfluencer(BaseModel):
+    """Marketplace influencer with full profile and trust data."""
+    id: str
+    handle: str
+    platform: MarketplacePlatform
+
+    # Profile data
+    display_name: Optional[str] = None
+    bio: Optional[str] = None
+    profile_url: Optional[str] = None
+    followers_count: Optional[int] = None
+    following_count: Optional[int] = None
+    posts_count: Optional[int] = None
+    is_verified: bool = False
+
+    # Trust scores
+    overall_trust_score: float = Field(..., ge=0.0, le=1.0)
+    trust_label: Literal["high", "medium", "low"]
+
+    # Component scores
+    message_history_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    followers_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    web_reputation_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    disclosure_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+    # Additional metadata
+    analysis_summary: Optional[str] = None
+    issues: List[str] = Field(default_factory=list)
+    last_analyzed_at: str
+
+    # Marketplace metadata
+    added_to_marketplace_at: str
+    is_featured: bool = False
+    admin_notes: Optional[str] = None
+
+
+class AddToMarketplaceRequest(BaseModel):
+    """Request to add an influencer to the marketplace."""
+    handle: str = Field(..., description="Instagram handle to analyze and add to marketplace")
+    platform: Literal["instagram"] = "instagram"
+    admin_notes: Optional[str] = Field(None, description="Optional notes for admin reference")
+    is_featured: bool = Field(False, description="Mark as featured influencer")
+
+
+class MarketplaceListRequest(BaseModel):
+    """Request to list marketplace influencers with filters."""
+    search: Optional[str] = Field(None, description="Search by handle or display name")
+    trust_level: Optional[Literal["high", "medium", "low"]] = Field(None, description="Filter by trust level")
+    sort_by: Literal["trust_score", "followers", "last_analyzed"] = Field("trust_score", description="Sort field")
+    sort_order: Literal["asc", "desc"] = Field("desc", description="Sort order")
+    limit: int = Field(20, ge=1, le=100, description="Number of results per page")
+    offset: int = Field(0, ge=0, description="Pagination offset")
+
+
+class MarketplaceListResponse(BaseModel):
+    """Response with paginated marketplace influencers."""
+    influencers: List[MarketplaceInfluencer]
+    total: int
+    limit: int
+    offset: int
+
+
+# User feedback schemas
+class UserFeedbackRequest(BaseModel):
+    """Request to submit user feedback after analysis."""
+    analysis_type: Literal["full", "influencer", "company", "product", "text"] = Field(
+        ...,
+        description="Type of analysis that was performed"
+    )
+    analyzed_entity: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="Handle, company name, or product name that was analyzed"
+    )
+    experience_rating: Literal["good", "medium", "bad"] = Field(
+        ...,
+        description="User's experience rating: good, medium, or bad"
+    )
+    review_text: Optional[str] = Field(
+        None,
+        max_length=1000,
+        description="Optional user review or additional feedback"
+    )
+    email: Optional[EmailStr] = Field(
+        None,
+        description="Optional email for newsletter signup"
+    )
+    email_consented: bool = Field(
+        False,
+        description="User explicitly consents to receive emails"
+    )
+
+    @field_validator('review_text')
+    @classmethod
+    def sanitize_review_text(cls, v: Optional[str]) -> Optional[str]:
+        """Sanitize review text to prevent XSS and other injection attacks."""
+        if v is None:
+            return v
+        # Strip whitespace
+        v = v.strip()
+        if not v:
+            return None
+        # Remove any potential HTML/script tags (basic sanitization)
+        # Note: More robust sanitization can be done with bleach library
+        dangerous_patterns = ['<script', '</script', 'javascript:', 'onerror=', 'onclick=']
+        v_lower = v.lower()
+        for pattern in dangerous_patterns:
+            if pattern in v_lower:
+                raise ValueError("Review text contains potentially dangerous content")
+        return v
+
+    @field_validator('analyzed_entity')
+    @classmethod
+    def sanitize_entity(cls, v: Optional[str]) -> Optional[str]:
+        """Sanitize analyzed entity field."""
+        if v is None:
+            return v
+        # Strip whitespace and limit length
+        return v.strip()[:200]
+
+
+class UserFeedbackResponse(BaseModel):
+    """Response after submitting feedback."""
+    id: str
+    message: str = "Thank you for your feedback!"
+    email_subscribed: bool = False

@@ -20,18 +20,35 @@ python -m venv .venv
 # source .venv/bin/activate  # on macOS/Linux
 ```
 
-Create `backend/.env` (or reuse the one in this repo) with:
+Create `backend/.env` (copy from `backend/.env.example`) with:
 
 ```bash
+# Required
 MISTRAL_API_KEY=...
-SERPER_API_KEY=...
-X_BEARER_TOKEN=...        # currently unused
-MS_TOKEN=...              # currently unused
+
+# Web Search (at least one required)
+PERPLEXITY_API_KEY=...    # Recommended: Perplexity Sonar for web searches
+SERPER_API_KEY=...        # Fallback: Serper for web searches
+
+# Optional: Supabase for caching
+SUPABASE_URL=...
+SUPABASE_KEY=...
+
+# Optional: TikTok support
+# TIKTOK_MS_TOKEN=...
 ```
 
-You need:
-- a Mistral API key (for all LLM‑based scoring)
-- a Serper.dev API key (for web reputation lookups)
+**Required API Keys:**
+- **Mistral API key** ([Get it here](https://console.mistral.ai/)): Used for all LLM-based analysis and scoring
+- **Perplexity API key** ([Get it here](https://www.perplexity.ai/settings/api)) **OR** **Serper API key** ([Get it here](https://serper.dev/)): Used for web reputation lookups
+  - Perplexity Sonar is tried first (recommended for better results)
+  - Falls back to Serper if Perplexity is unavailable
+
+**Optional but Recommended:**
+- **Supabase** ([Free tier available](https://supabase.com/)): Enables caching of influencer, company, and product analysis
+  - Significantly reduces API costs by avoiding redundant searches
+  - Cache expires after 7 days automatically
+  - See setup instructions below
 
 ### 2. Install backend dependencies
 
@@ -44,12 +61,12 @@ pip install -r backend/requirements.txt
 From the repo root (with the virtualenv active):
 
 ```bash
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 5371
 ```
 
 The API root should now respond at:
 
-- `GET http://localhost:8000/` → health check
+- `GET http://localhost:5371/` → health check
 
 The main endpoints used by the UI:
 
@@ -69,7 +86,47 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` and make sure the frontend is configured (via `ANALYZE_ENDPOINT` in `frontend/src/app/lib/constants.ts`) to talk to `http://localhost:8000/analyze/full`.
+Open `http://localhost:3000`. The Next.js API routes proxy requests (analysis + marketplace) to the FastAPI backend, so ensure the backend URL is set via the `BACKEND_API_BASE_URL` environment variable (e.g., in `frontend/.env.local`). It defaults to `http://localhost:5371`, matching `python run_backend.py`. Update it if you run the backend on a different port.
+
+### 5. Optional: Set up Supabase caching
+
+To enable caching and significantly reduce API costs:
+
+1. **Create a Supabase project**:
+   - Go to [supabase.com](https://supabase.com/) and create a free account
+   - Create a new project (free tier is sufficient)
+
+2. **Run the schema SQL**:
+   - In your Supabase dashboard, go to the SQL Editor
+   - Open `backend/supabase_schema.sql` and copy its contents
+   - Paste and run it in the SQL Editor to create the cache tables
+
+3. **Get your credentials**:
+   - In Project Settings → API, copy your:
+     - Project URL (`SUPABASE_URL`)
+     - Service role key (`SUPABASE_KEY` - **not** the anon key)
+   - Add these to your `backend/.env` file
+
+4. **Verify setup**:
+   - Restart your backend server
+   - Check the logs - you should see `[Supabase] Cache hit/miss` messages when analyzing influencers, companies, or products
+   - The second time you analyze the same entity within 7 days will be much faster and free!
+
+### Seed sample marketplace data
+
+Want a starter set of marketplace influencers before you run real analyses?
+
+```bash
+python backend/seed_marketplace.py
+```
+
+The script reuses the Supabase credentials from `backend/.env`, upserts 30 well-known creators, and sets placeholder trust scores/summaries. These entries show up immediately in the Marketplace tab once the backend and frontend are running. Feel free to edit the script to add/remove records before executing it.
+
+**Cache Benefits:**
+- Influencer analysis: Saves ~3-5 API calls (Instagram scraping + web searches)
+- Company analysis: Saves ~4-8 web searches
+- Product analysis: Saves ~4-8 web searches
+- Cache automatically expires after 7 days to ensure data freshness
 
 ---
 

@@ -8,6 +8,7 @@ import { Card } from './components/ui/Card';
 import { Button } from './components/ui/Button';
 import { Textarea } from './components/ui/Textarea';
 import { Input } from './components/ui/Input';
+import FeedbackForm from './components/FeedbackForm';
 import { storage } from './lib/storage';
 import type { FullAnalysisResponse } from './lib/types';
 
@@ -810,6 +811,19 @@ export default function Home() {
                   <p style={{ color: colors.text.secondary }}>{result.final_summary}</p>
                 </Card>
               )}
+
+              {/* Feedback Form */}
+              <FeedbackForm
+                analysisType="full"
+                analyzedEntity={
+                  result.influencer_trust?.stats?.handle ||
+                  result.source_details?.inferred_company_name ||
+                  result.source_details?.inferred_product_name
+                }
+                onSubmitSuccess={() => {
+                  console.log('Feedback submitted successfully');
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>

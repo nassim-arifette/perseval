@@ -13,9 +13,7 @@ def fetch_snippets_from_queries(queries: List[str], max_results: int = 8) -> Lis
 def get_company_snippets(name: str, max_results: int = 8) -> List[dict]:
     queries = [
         f'"{name}" reviews',
-        f'"{name}" scam',
-        f'"{name}" lawsuit',
-        f'"{name}" complaints',
+        f'"{name}" scam lawsuit complaints',
     ]
     return fetch_snippets_from_queries(queries, max_results)
 
@@ -23,9 +21,7 @@ def get_company_snippets(name: str, max_results: int = 8) -> List[dict]:
 def get_product_snippets(name: str, max_results: int = 8) -> List[dict]:
     queries = [
         f'"{name}" product reviews',
-        f'"{name}" complaints',
-        f'"{name}" scam',
-        f'"{name}" safety issues',
+        f'"{name}" complaints scam safety issues',
     ]
     return fetch_snippets_from_queries(queries, max_results)
 
@@ -37,14 +33,7 @@ def get_influencer_snippets(
 ) -> List[dict]:
     normalized_handle = handle.lstrip("@")
     queries = [
-        f'"{normalized_handle}" scam',
-        f'"{normalized_handle}" controversy',
-        f'"{normalized_handle}" lawsuit',
+        f'"{normalized_handle}" scam controversy lawsuit',
     ]
-    if full_name:
-        queries += [
-            f'"{full_name}" scam',
-            f'"{full_name}" controversy',
-        ]
     return fetch_snippets_from_queries(queries, max_results)
 
