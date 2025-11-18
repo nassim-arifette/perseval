@@ -45,14 +45,7 @@ export function Input({
           </div>
         )}
 
-        <motion.input
-          animate={{
-            borderColor: isFocused
-              ? colors.border.focus
-              : error
-              ? colors.accent.danger
-              : colors.border.default,
-          }}
+        <input
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={`

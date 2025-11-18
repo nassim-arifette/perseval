@@ -348,7 +348,8 @@ export function ResultState({
           analyzedEntity={
             influencerHandleCopy ||
             fullResult.source_details.inferred_company_name ||
-            fullResult.source_details.inferred_product_name
+            fullResult.source_details.inferred_product_name ||
+            undefined
           }
           onSubmitSuccess={() => {
             console.log('Feedback submitted successfully');
