@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_API_BASE_URL =
-  process.env.BACKEND_API_BASE_URL ?? "http://localhost:5371";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:5371";
 
 export async function POST(request: Request) {
   try {
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     }
 
     const backendResponse = await fetch(
-      `${BACKEND_API_BASE_URL}/analyze/full`,
+      `${BACKEND_URL}/analyze/full`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

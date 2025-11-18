@@ -4,13 +4,13 @@ from dataclasses import asdict
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Request, Header
-from backend.rate_limiter import check_rate_limit
+from rate_limiter import check_rate_limit
 
-from backend.influencer_probe import (
+from influencer_probe import (
     get_instagram_post_from_url,
     get_instagram_stats,
 )
-from backend.schemas import (
+from schemas import (
     CompanyTrustRequest,
     CompanyTrustResponse,
     FullAnalysisRequest,
@@ -31,17 +31,17 @@ from backend.schemas import (
     UserFeedbackRequest,
     UserFeedbackResponse,
 )
-from backend.services.mistral import (
+from services.mistral import (
     detect_company_and_product_from_text,
     mistral_scam_check,
 )
-from backend.services.tiktok import get_tiktok_video_info
-from backend.services.trust import (
+from services.tiktok import get_tiktok_video_info
+from services.trust import (
     build_company_trust_response,
     build_influencer_trust_response,
     build_product_trust_response,
 )
-from backend.supabase_client import (
+from supabase_client import (
     add_influencer_to_marketplace,
     get_marketplace_influencer,
     list_marketplace_influencers,

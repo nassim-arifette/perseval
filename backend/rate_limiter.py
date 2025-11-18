@@ -6,7 +6,7 @@ Uses IP-based tracking with daily quotas stored in Supabase.
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import Request, HTTPException
-from backend.supabase_client import supabase_client
+from supabase_client import supabase_client
 
 # Daily request limit for expensive endpoints
 DAILY_LIMIT = 10

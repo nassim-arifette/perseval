@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 
-from backend.web_search import multi_query_search
+from web_search import multi_query_search
 
 
 def fetch_snippets_from_queries(queries: List[str], max_results: int = 8) -> List[dict]:

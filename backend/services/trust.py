@@ -4,26 +4,26 @@ import math
 from dataclasses import asdict
 from typing import List, Optional
 
-from backend.influencer_probe import get_instagram_stats
-from backend.schemas import (
+from influencer_probe import get_instagram_stats
+from schemas import (
     CompanyTrustResponse,
     InfluencerStatsResponse,
     InfluencerTrustResponse,
     ProductTrustResponse,
     ScamPrediction,
 )
-from backend.services.mistral import (
+from services.mistral import (
     evaluate_company_reputation,
     evaluate_influencer_reputation,
     evaluate_product_reputation,
     mistral_scam_check,
 )
-from backend.services.snippets import (
+from services.snippets import (
     get_company_snippets,
     get_influencer_snippets,
     get_product_snippets,
 )
-from backend.supabase_client import (
+from supabase_client import (
     cache_company,
     cache_influencer,
     cache_product,
