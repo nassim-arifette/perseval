@@ -50,6 +50,8 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log(`Calling backend at: ${BACKEND_URL}/analyze/full`);
+
     const backendResponse = await fetch(
       `${BACKEND_URL}/analyze/full`,
       {
