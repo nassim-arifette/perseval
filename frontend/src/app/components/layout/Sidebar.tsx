@@ -6,12 +6,12 @@ import { getThemeColors, getThemeShadows, theme } from '@/app/lib/theme';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, ReactNode } from 'react';
 
 interface NavItem {
   name: string;
   path: string;
-  icon: JSX.Element;
+  icon: ReactNode;
   badge?: number;
 }
 
