@@ -31,8 +31,18 @@ def get_influencer_snippets(
     full_name: Optional[str],
     max_results: int = 8,
 ) -> List[dict]:
+    """
+    Fetch comprehensive web snippets about an influencer's reputation.
+    Uses Perplexity (preferred) or Serper for web searches.
+    """
     normalized_handle = handle.lstrip("@")
     queries = [
-        f'"{normalized_handle}" scam controversy lawsuit',
+        f'"{normalized_handle}" influencer scam controversy',
+        f'"{normalized_handle}" sponsored posts disclosure',
     ]
+
+    # Add full name search if available for better context
+    if full_name and full_name.strip():
+        queries.append(f'"{full_name}" influencer reputation reviews')
+
     return fetch_snippets_from_queries(queries, max_results)

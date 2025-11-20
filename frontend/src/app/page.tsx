@@ -41,7 +41,45 @@ export default function Home() {
   const [expandedCard, setExpandedCard] = useState<'influencer' | 'company' | 'product' | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Validation states
+  const [instagramUrlError, setInstagramUrlError] = useState<string>('');
+  const [tiktokUrlError, setTiktokUrlError] = useState<string>('');
+  const [influencerHandleError, setInfluencerHandleError] = useState<string>('');
+
   const canSubmit = !loading && (Boolean(text.trim()) || Boolean(instagramUrl.trim()) || Boolean(tiktokUrl.trim()));
+
+  // Validation functions
+  const validateInstagramUrl = (value: string): boolean => {
+    if (!value.trim()) {
+      setInstagramUrlError('');
+      return true;
+    }
+    const isValid = INSTAGRAM_URL_PATTERN.test(value.trim());
+    setInstagramUrlError(isValid ? '' : 'Invalid Instagram URL format');
+    return isValid;
+  };
+
+  const validateTiktokUrl = (value: string): boolean => {
+    if (!value.trim()) {
+      setTiktokUrlError('');
+      return true;
+    }
+    const isValid = TIKTOK_URL_PATTERN.test(value.trim());
+    setTiktokUrlError(isValid ? '' : 'Invalid TikTok URL format');
+    return isValid;
+  };
+
+  const validateInfluencerHandle = (value: string): boolean => {
+    if (!value.trim()) {
+      setInfluencerHandleError('');
+      return true;
+    }
+    // Auto-add @ if missing
+    const normalized = value.trim().startsWith('@') ? value.trim() : `@${value.trim()}`;
+    setInfluencerHandle(normalized);
+    setInfluencerHandleError('');
+    return true;
+  };
 
   const normalizeUrl = (value: string): string => {
     const cleaned = value.trim().replace(/^\/\//, '');

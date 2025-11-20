@@ -2,6 +2,18 @@
 
 Perseval is a full‑stack AI-powered tool that helps you quickly assess whether a social media promotion looks like a scam and how much you can trust the people and brands behind it.
 
+## 🆕 Marketplace Feature
+
+Perseval now includes a **curated influencer marketplace** with AI-powered trust scores:
+- 🔍 **Comprehensive Trust Analysis** - Multi-factor scoring using Perplexity AI or Serper
+- 🎯 **Smart Search & Filtering** - Find influencers by trust level, followers, or recent activity
+- 🤖 **Automatic Updates** - Trust scores calculated on-demand with latest data
+- 📊 **Transparent Metrics** - See breakdown of message history, followers, web reputation, and disclosure scores
+
+**Quick Links:**
+- 📖 [Complete Marketplace Guide](docs/MARKETPLACE_GUIDE.md)
+- ➕ [Adding Influencers Guide](docs/ADDING_INFLUENCERS.md)
+
 The project has:
 - **Backend** (`backend/`): FastAPI server that integrates with Mistral AI and Serper.dev to analyze messages, inspect Instagram/TikTok posts, and compute comprehensive trust scores
 - **Frontend** (`frontend/`): Modern Next.js application with an intuitive UI featuring dark/light themes, interactive analytics dashboard, and detailed analysis history

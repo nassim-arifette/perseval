@@ -22,9 +22,20 @@ frontend/.env.*
 .DS_Store
 Thumbs.db
 
+# Temporary and generated files
 export_project_snapshot.py
 project_snapshot.txt
-
 temp.txt
+*.pyc
+*.pyo
+*.log
 
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
 .claude/

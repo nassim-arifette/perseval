@@ -11,7 +11,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.supabase_client import supabase_client
+from backend.app.integrations.supabase import get_supabase_client
+
+supabase_client = get_supabase_client()
 
 if supabase_client is None:
     print("Supabase is not configured. Set SUPABASE_URL and SUPABASE_KEY in backend/.env.")

@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     api_title: str = "Scam Checker API"
     environment: str = Field(default="development", alias="APP_ENV")
     mistral_api_key: str = Field(..., alias="MISTRAL_API_KEY")
+    perplexity_api_key: str | None = Field(default=None, alias="PERPLEXITY_API_KEY")
+    serper_api_key: str | None = Field(default=None, alias="SERPER_API_KEY")
     supabase_url: str | None = Field(default=None, alias="SUPABASE_URL")
     supabase_key: str | None = Field(default=None, alias="SUPABASE_KEY")
     admin_api_key: str | None = Field(default=None, alias="ADMIN_API_KEY")
