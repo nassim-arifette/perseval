@@ -6,8 +6,11 @@ from typing import List, Optional, Tuple
 import requests
 from fastapi import HTTPException
 
-from config import MISTRAL_API_KEY
-from schemas import ScamPrediction
+from backend.app.core.settings import get_settings
+from backend.app.models.schemas import ScamPrediction
+
+settings = get_settings()
+MISTRAL_API_KEY = settings.mistral_api_key
 
 
 def _parse_mistral_content(raw_content: str) -> dict:

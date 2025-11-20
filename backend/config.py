@@ -1,15 +1,9 @@
-"""Shared configuration helpers for the backend."""
+"""Backward-compatible configuration module."""
 
-import os
+from backend.app.core.settings import Settings, get_settings
 
-from dotenv import load_dotenv
+settings = get_settings()
+API_TITLE = settings.api_title
+MISTRAL_API_KEY = settings.mistral_api_key
 
-load_dotenv()
-
-API_TITLE = "Scam Checker API"
-
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
-
-if not MISTRAL_API_KEY:
-    raise RuntimeError("Missing MISTRAL_API_KEY in .env")
-
+__all__ = ["Settings", "get_settings", "settings", "API_TITLE", "MISTRAL_API_KEY"]

@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 
-from web_search import multi_query_search
+from backend.app.services.web_search import multi_query_search
 
 
 def fetch_snippets_from_queries(queries: List[str], max_results: int = 8) -> List[dict]:
@@ -36,4 +36,3 @@ def get_influencer_snippets(
         f'"{normalized_handle}" scam controversy lawsuit',
     ]
     return fetch_snippets_from_queries(queries, max_results)
-

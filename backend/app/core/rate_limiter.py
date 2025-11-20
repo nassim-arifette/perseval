@@ -1,15 +1,13 @@
-"""
-Rate limiting for expensive API endpoints.
-Uses IP-based tracking with daily quotas stored in Supabase.
-"""
+"""Rate limiting for expensive API endpoints."""
 
-from datetime import datetime, timezone
-from typing import Optional
-from fastapi import Request, HTTPException
-from supabase_client import supabase_client
+from fastapi import HTTPException, Request
 
-# Daily request limit for expensive endpoints
-DAILY_LIMIT = 10
+from backend.app.core.settings import get_settings
+from backend.app.integrations.supabase import is_supabase_available
+from backend.app.repositories import rate_limit as rate_limit_repo
+
+settings = get_settings()
+DAILY_LIMIT = settings.rate_limit_daily_limit
 
 
 def get_client_ip(request: Request) -> str:
@@ -45,37 +43,28 @@ def check_rate_limit(request: Request, endpoint_group: str = "analysis") -> None
     """
     client_ip = get_client_ip(request)
 
-    # Check if Supabase is available
-    if not supabase_client:
-        # Fail closed: if we can't verify the rate limit, block the request
+    if not is_supabase_available():
         raise HTTPException(
             status_code=503,
             detail="Rate limiting system unavailable. Please try again later."
         )
 
     try:
-        # Call the Supabase RPC function to check and increment the rate limit
-        result = supabase_client.rpc(
-            'check_and_increment_rate_limit',
-            {
-                'p_client_ip': client_ip,
-                'p_endpoint_group': endpoint_group,
-                'p_daily_limit': DAILY_LIMIT
-            }
-        ).execute()
+        result = rate_limit_repo.check_and_increment_rate_limit(
+            client_ip,
+            endpoint_group,
+            settings.rate_limit_daily_limit,
+        )
 
-        if not result.data:
-            # Fail closed: if we can't verify the rate limit, block the request
+        if not result:
             raise HTTPException(
                 status_code=503,
                 detail="Rate limiting system unavailable. Please try again later."
             )
 
-        response = result.data
-
-        if not response.get('allowed', False):
-            remaining = max(0, DAILY_LIMIT - response.get('current_count', DAILY_LIMIT))
-            reset_time = response.get('reset_at', 'unknown')
+        if not result.get('allowed', False):
+            remaining = max(0, DAILY_LIMIT - result.get('current_count', DAILY_LIMIT))
+            reset_time = result.get('reset_at', 'unknown')
 
             raise HTTPException(
                 status_code=429,
@@ -110,7 +99,7 @@ def get_rate_limit_status(request: Request, endpoint_group: str = "analysis") ->
     """
     client_ip = get_client_ip(request)
 
-    if not supabase_client:
+    if not is_supabase_available():
         return {
             'remaining': 0,
             'limit': DAILY_LIMIT,
@@ -119,16 +108,9 @@ def get_rate_limit_status(request: Request, endpoint_group: str = "analysis") ->
         }
 
     try:
-        result = supabase_client.rpc(
-            'get_rate_limit_status',
-            {
-                'p_client_ip': client_ip,
-                'p_endpoint_group': endpoint_group
-            }
-        ).execute()
+        data = rate_limit_repo.get_rate_limit_status(client_ip, endpoint_group)
 
-        if result.data:
-            data = result.data
+        if data:
             remaining = max(0, DAILY_LIMIT - data.get('current_count', 0))
             return {
                 'remaining': remaining,

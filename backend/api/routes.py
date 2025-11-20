@@ -3,14 +3,13 @@
 from dataclasses import asdict
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Request, Header
-from rate_limiter import check_rate_limit
+from fastapi import APIRouter, Header, HTTPException, Request
 
-from influencer_probe import (
-    get_instagram_post_from_url,
-    get_instagram_stats,
-)
-from schemas import (
+from backend.app.core.rate_limiter import check_rate_limit
+from backend.app.core.security import verify_admin_auth
+from backend.app.integrations.supabase import is_supabase_available
+from backend.app.models.schemas import (
+    AddToMarketplaceRequest,
     CompanyTrustRequest,
     CompanyTrustResponse,
     FullAnalysisRequest,
@@ -20,85 +19,42 @@ from schemas import (
     InfluencerStatsResponse,
     InfluencerTrustResponse,
     InstagramPostAnalyzeRequest,
+    MarketplaceInfluencer,
+    MarketplaceListRequest,
+    MarketplaceListResponse,
     ProductTrustRequest,
     ProductTrustResponse,
     ScamPrediction,
     TextAnalyzeRequest,
-    MarketplaceInfluencer,
-    AddToMarketplaceRequest,
-    MarketplaceListRequest,
-    MarketplaceListResponse,
     UserFeedbackRequest,
     UserFeedbackResponse,
 )
-from services.mistral import (
-    detect_company_and_product_from_text,
-    mistral_scam_check,
+from backend.app.repositories.feedback import (
+    check_feedback_rate_limit,
+    get_newsletter_subscribers,
+    submit_user_feedback,
 )
-from services.tiktok import get_tiktok_video_info
-from services.trust import (
-    build_company_trust_response,
-    build_influencer_trust_response,
-    build_product_trust_response,
-)
-from supabase_client import (
+from backend.app.repositories.marketplace import (
     add_influencer_to_marketplace,
     get_marketplace_influencer,
     list_marketplace_influencers,
     remove_from_marketplace,
-    is_cache_available,
-    check_feedback_rate_limit,
-    submit_user_feedback,
-    get_newsletter_subscribers,
 )
-
+from backend.app.services.influencer_probe import (
+    get_instagram_post_from_url,
+    get_instagram_stats,
+)
+from backend.app.services.mistral import (
+    detect_company_and_product_from_text,
+    mistral_scam_check,
+)
+from backend.app.services.tiktok import get_tiktok_video_info
+from backend.app.services.trust import (
+    build_company_trust_response,
+    build_influencer_trust_response,
+    build_product_trust_response,
+)
 router = APIRouter()
-
-
-def verify_admin_auth(authorization: Optional[str]) -> None:
-    """
-    Verify admin authentication via Authorization header.
-
-    SECURITY: Requires Bearer token matching ADMIN_API_KEY env var.
-    Uses constant-time comparison to prevent timing attacks.
-
-    Args:
-        authorization: Authorization header value
-
-    Raises:
-        HTTPException: 401 if unauthorized, 501 if not configured
-    """
-    import os
-    import hmac
-
-    admin_api_key = os.getenv("ADMIN_API_KEY")
-
-    if not admin_api_key:
-        raise HTTPException(
-            status_code=501,
-            detail="Admin authentication not configured. Set ADMIN_API_KEY in .env file.",
-        )
-
-    if not authorization:
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized. Authorization header required. Use: 'Authorization: Bearer YOUR_API_KEY'",
-        )
-
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid authorization format. Use: 'Authorization: Bearer YOUR_API_KEY'",
-        )
-
-    provided_key = authorization.replace("Bearer ", "").strip()
-
-    # SECURITY: Use constant-time comparison to prevent timing attacks
-    if not hmac.compare_digest(provided_key, admin_api_key):
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized. Invalid API key.",
-        )
 
 
 @router.post("/analyze/text", response_model=ScamPrediction)
@@ -292,7 +248,7 @@ async def analyze_full(req: FullAnalysisRequest, request: Request):
             )
 
             # Automatically add influencer to marketplace after analysis
-            if influencer_trust and is_cache_available():
+            if influencer_trust and is_supabase_available():
                 try:
                     # Prepare profile and trust data
                     profile_data = {
@@ -450,7 +406,7 @@ def list_marketplace(
     """
     List marketplace influencers with filtering, sorting, and pagination.
     """
-    if not is_cache_available():
+    if not is_supabase_available():
         raise HTTPException(
             status_code=503,
             detail="Marketplace is not available. Supabase must be configured to use marketplace features.",
@@ -507,7 +463,7 @@ def get_marketplace_influencer_detail(handle: str, platform: str = "instagram"):
     """
     Get detailed information for a single marketplace influencer.
     """
-    if not is_cache_available():
+    if not is_supabase_available():
         raise HTTPException(
             status_code=503,
             detail="Marketplace is not available. Supabase must be configured to use marketplace features.",
@@ -564,7 +520,7 @@ async def add_to_marketplace(
     # SECURITY: Rate limit admin endpoints
     check_rate_limit(request, endpoint_group="admin")
 
-    if not is_cache_available():
+    if not is_supabase_available():
         raise HTTPException(
             status_code=503,
             detail="Marketplace is not available. Supabase must be configured to use marketplace features.",
@@ -668,7 +624,7 @@ def remove_influencer_from_marketplace(
     # SECURITY: Rate limit admin endpoints
     check_rate_limit(request, endpoint_group="admin")
 
-    if not is_cache_available():
+    if not is_supabase_available():
         raise HTTPException(
             status_code=503,
             detail="Marketplace is not available. Supabase must be configured to use marketplace features.",
@@ -766,7 +722,7 @@ def get_subscribers(request: Request, authorization: Optional[str] = Header(None
     # SECURITY: Rate limit admin endpoints too
     check_rate_limit(request, endpoint_group="admin")
 
-    if not is_cache_available():
+    if not is_supabase_available():
         raise HTTPException(
             status_code=503,
             detail="Newsletter feature not available. Supabase must be configured.",
@@ -778,4 +734,3 @@ def get_subscribers(request: Request, authorization: Optional[str] = Header(None
         "total": len(subscribers),
         "subscribers": subscribers,
     }
-

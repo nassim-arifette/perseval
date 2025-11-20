@@ -2,14 +2,12 @@
 Web search module with Perplexity Sonar (primary) and Serper (fallback) support.
 """
 import os
-from typing import List, Dict, Optional
-from openai import OpenAI
-from dotenv import load_dotenv
+from typing import Dict, List, Optional
 
-try:
-    from backend.serper_client import serper_search
-except ModuleNotFoundError:
-    from serper_client import serper_search
+from dotenv import load_dotenv
+from openai import OpenAI
+
+from backend.app.integrations.serper import serper_search
 
 load_dotenv()
 

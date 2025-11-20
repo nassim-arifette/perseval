@@ -4,32 +4,32 @@ import math
 from dataclasses import asdict
 from typing import List, Optional
 
-from influencer_probe import get_instagram_stats
-from schemas import (
+from backend.app.models.schemas import (
     CompanyTrustResponse,
     InfluencerStatsResponse,
     InfluencerTrustResponse,
     ProductTrustResponse,
     ScamPrediction,
 )
-from services.mistral import (
-    evaluate_company_reputation,
-    evaluate_influencer_reputation,
-    evaluate_product_reputation,
-    mistral_scam_check,
-)
-from services.snippets import (
-    get_company_snippets,
-    get_influencer_snippets,
-    get_product_snippets,
-)
-from supabase_client import (
+from backend.app.repositories.cache import (
     cache_company,
     cache_influencer,
     cache_product,
     get_cached_company,
     get_cached_influencer,
     get_cached_product,
+)
+from backend.app.services.influencer_probe import get_instagram_stats
+from backend.app.services.mistral import (
+    evaluate_company_reputation,
+    evaluate_influencer_reputation,
+    evaluate_product_reputation,
+    mistral_scam_check,
+)
+from backend.app.services.snippets import (
+    get_company_snippets,
+    get_influencer_snippets,
+    get_product_snippets,
 )
 
 
@@ -240,4 +240,3 @@ def build_product_trust_response(
 
     cache_product(name, response.model_dump())
     return response
-
