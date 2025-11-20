@@ -15,6 +15,13 @@ interface NavItem {
   badge?: number;
 }
 
+interface SidebarProps {
+  variant?: 'desktop' | 'mobile';
+  isOpen?: boolean;
+  onClose?: () => void;
+  className?: string;
+}
+
 const navItems: NavItem[] = [
   {
     name: 'Checker',
@@ -54,24 +61,40 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  variant = 'desktop',
+  isOpen = true,
+  onClose,
+  className = '',
+}: SidebarProps = {}) {
   const { theme: currentTheme } = useTheme();
   const colors = getThemeColors(currentTheme);
   const shadows = getThemeShadows(currentTheme);
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const isMobileVariant = variant === 'mobile';
+
+  const targetWidth = isMobileVariant ? '85vw' : isCollapsed ? '80px' : '240px';
+  const initialX = isMobileVariant ? -350 : -300;
+  const animateConfig = isMobileVariant
+    ? { x: isOpen ? 0 : -350, width: targetWidth }
+    : { x: 0, width: targetWidth };
+  const composedClassName = `fixed left-0 top-0 h-screen z-50 flex flex-col ${className}`.trim();
 
   return (
     <motion.aside
-      initial={{ x: -300 }}
-      animate={{ x: 0, width: isCollapsed ? '80px' : '240px' }}
+      initial={{ x: initialX }}
+      animate={animateConfig}
       transition={{ duration: 0.3 }}
-      className="fixed left-0 top-0 h-screen z-50 flex flex-col"
+      className={composedClassName}
       style={{
         backgroundColor: colors.background.card,
         borderRight: `1px solid ${colors.border.default}`,
         boxShadow: shadows.lg,
+        pointerEvents: isMobileVariant && !isOpen ? 'none' : 'auto',
+        maxWidth: isMobileVariant ? 320 : undefined,
       }}
+      aria-hidden={isMobileVariant && !isOpen}
     >
       {/* Logo Section */}
       <div className="p-6 flex items-center justify-between">
@@ -98,34 +121,56 @@ export function Sidebar() {
           )}
         </motion.div>
 
-        {/* Collapse button */}
-        <motion.button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          className="p-2 rounded-lg"
-          style={{
-            color: colors.text.tertiary,
-            backgroundColor: colors.background.hover,
-          }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="w-4 h-4"
+        {/* Desktop collapse or mobile close */}
+        {isMobileVariant ? (
+          <motion.button
+            onClick={() => onClose?.()}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="p-2 rounded-lg lg:hidden"
             style={{
-              transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.3s',
+              color: colors.text.tertiary,
+              backgroundColor: colors.background.hover,
+            }}
+            aria-label="Close menu"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path
+                fillRule="evenodd"
+                d="M10 8.586l3.182-3.182a1 1 0 111.414 1.414L11.414 10l3.182 3.182a1 1 0 01-1.414 1.414L10 11.414l-3.182 3.182a1 1 0 01-1.414-1.414L8.586 10 5.404 6.818a1 1 0 011.414-1.414L10 8.586z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </motion.button>
+        ) : (
+          <motion.button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="p-2 rounded-lg"
+            style={{
+              color: colors.text.tertiary,
+              backgroundColor: colors.background.hover,
             }}
           >
-            <path
-              fillRule="evenodd"
-              d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </motion.button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-4 h-4"
+              style={{
+                transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.3s',
+              }}
+            >
+              <path
+                fillRule="evenodd"
+                d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </motion.button>
+        )}
       </div>
 
       {/* Navigation Items */}
@@ -168,7 +213,7 @@ export function Sidebar() {
 
                     <div className="flex-shrink-0">{item.icon}</div>
 
-                    {!isCollapsed && (
+                    {(!isCollapsed || isMobileVariant) && (
                       <motion.span
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -178,7 +223,7 @@ export function Sidebar() {
                       </motion.span>
                     )}
 
-                    {item.badge && !isCollapsed && (
+                    {item.badge && (!isCollapsed || isMobileVariant) && (
                       <motion.span
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -201,8 +246,12 @@ export function Sidebar() {
 
       {/* Footer with theme toggle */}
       <div className="p-4 border-t" style={{ borderColor: colors.border.default }}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-          {!isCollapsed && (
+        <div
+          className={`flex items-center ${
+            isMobileVariant ? 'justify-between' : isCollapsed ? 'justify-center' : 'justify-between'
+          }`}
+        >
+          {(!isCollapsed || isMobileVariant) && (
             <span className="text-sm" style={{ color: colors.text.tertiary }}>
               Theme
             </span>
