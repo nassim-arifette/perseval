@@ -319,35 +319,60 @@ export default function Home() {
                       >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <Input
-                            label="Instagram URL"
-                            placeholder="https://instagram.com/p/..."
+                            label="Instagram URL (Optional)"
+                            placeholder="https://instagram.com/p/ABC123..."
                             value={instagramUrl}
-                            onChange={(e) => setInstagramUrl(e.target.value)}
+                            onChange={(e) => {
+                              setInstagramUrl(e.target.value);
+                              validateInstagramUrl(e.target.value);
+                            }}
+                            onBlur={(e) => validateInstagramUrl(e.target.value)}
+                            error={instagramUrlError}
+                            success={instagramUrl.trim() && !instagramUrlError ? 'Valid Instagram URL' : ''}
+                            helperText="Paste a public Instagram post URL"
+                            showValidation={Boolean(instagramUrl.trim())}
                           />
                           <Input
-                            label="TikTok URL"
-                            placeholder="https://tiktok.com/@..."
+                            label="TikTok URL (Optional)"
+                            placeholder="https://tiktok.com/@user/video/..."
                             value={tiktokUrl}
-                            onChange={(e) => setTiktokUrl(e.target.value)}
+                            onChange={(e) => {
+                              setTiktokUrl(e.target.value);
+                              validateTiktokUrl(e.target.value);
+                            }}
+                            onBlur={(e) => validateTiktokUrl(e.target.value)}
+                            error={tiktokUrlError}
+                            success={tiktokUrl.trim() && !tiktokUrlError ? 'Valid TikTok URL' : ''}
+                            helperText="Paste a TikTok video URL"
+                            showValidation={Boolean(tiktokUrl.trim())}
                           />
                           <Input
-                            label="Influencer Handle"
-                            placeholder="@username"
+                            label="Influencer Handle (Optional)"
+                            placeholder="username or @username"
                             value={influencerHandle}
-                            onChange={(e) => setInfluencerHandle(e.target.value)}
+                            onChange={(e) => {
+                              setInfluencerHandle(e.target.value);
+                            }}
+                            onBlur={(e) => validateInfluencerHandle(e.target.value)}
+                            error={influencerHandleError}
+                            success={influencerHandle.trim() ? 'Handle format looks good' : ''}
+                            helperText="We'll auto-add @ if missing"
+                            showValidation={Boolean(influencerHandle.trim())}
                           />
                           <Input
-                            label="Company Name"
+                            label="Company Name (Optional)"
                             placeholder="Brand or company name"
                             value={companyName}
                             onChange={(e) => setCompanyName(e.target.value)}
+                            helperText="Leave blank to auto-detect"
                           />
                         </div>
                         <Input
-                          label="Product Name"
+                          label="Product Name (Optional)"
                           placeholder="Product or service name"
                           value={productName}
                           onChange={(e) => setProductName(e.target.value)}
+                          helperText="Leave blank to auto-detect from message"
                         />
                       </motion.div>
                     )}
