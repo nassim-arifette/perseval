@@ -32,22 +32,24 @@ def get_client_ip(request: Request) -> str:
 def check_rate_limit(request: Request, endpoint_group: str = "analysis") -> None:
     """
     Check if the client has exceeded their daily rate limit.
-    Raises HTTPException(429) if limit exceeded or on error (fail closed).
+    Raises HTTPException(429) if limit exceeded.
+
+    GRACEFUL DEGRADATION: If Supabase/rate limiting is unavailable, allows request
+    with a warning log instead of blocking (fail open for better UX).
 
     Args:
         request: FastAPI request object
         endpoint_group: Category of endpoint (e.g., 'analysis', 'influencer', 'trust')
 
     Raises:
-        HTTPException: 429 if rate limit exceeded, 503 if rate limiting system fails
+        HTTPException: 429 if rate limit exceeded
     """
     client_ip = get_client_ip(request)
 
+    # GRACEFUL DEGRADATION: Allow requests if Supabase unavailable
     if not is_supabase_available():
-        raise HTTPException(
-            status_code=503,
-            detail="Rate limiting system unavailable. Please try again later."
-        )
+        print(f"[RateLimit] WARNING: Supabase unavailable, allowing request from {client_ip} (no rate limiting)")
+        return
 
     try:
         result = rate_limit_repo.check_and_increment_rate_limit(
@@ -56,11 +58,10 @@ def check_rate_limit(request: Request, endpoint_group: str = "analysis") -> None
             settings.rate_limit_daily_limit,
         )
 
+        # GRACEFUL DEGRADATION: Allow if rate limit check fails
         if not result:
-            raise HTTPException(
-                status_code=503,
-                detail="Rate limiting system unavailable. Please try again later."
-            )
+            print(f"[RateLimit] WARNING: Rate limit check failed, allowing request from {client_ip}")
+            return
 
         if not result.get('allowed', False):
             remaining = max(0, DAILY_LIMIT - result.get('current_count', DAILY_LIMIT))
@@ -78,15 +79,12 @@ def check_rate_limit(request: Request, endpoint_group: str = "analysis") -> None
             )
 
     except HTTPException:
-        # Re-raise HTTP exceptions (429, 503)
+        # Re-raise HTTP exceptions (429)
         raise
     except Exception as e:
-        # Fail closed: any unexpected error blocks the request
-        print(f"Rate limiting error: {e}")
-        raise HTTPException(
-            status_code=503,
-            detail="Rate limiting system error. Please try again later."
-        )
+        # GRACEFUL DEGRADATION: Log error but allow request
+        print(f"[RateLimit] WARNING: Rate limiting error, allowing request: {e}")
+        return
 
 
 def get_rate_limit_status(request: Request, endpoint_group: str = "analysis") -> dict:
