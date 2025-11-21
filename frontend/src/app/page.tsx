@@ -231,26 +231,26 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen p-8"
+      className="min-h-screen px-4 py-6 sm:px-6 lg:px-12"
       style={{ backgroundColor: colors.background.secondary }}
     >
       <motion.div
         initial="initial"
         animate="animate"
         variants={animations.staggerContainer}
-        className="max-w-5xl mx-auto"
+        className="mx-auto w-full max-w-5xl"
       >
         {/* Hero Section */}
-        <motion.div variants={animations.slideDown} className="text-center mb-12">
-          <h1 className="text-6xl font-bold mb-4">
+        <motion.div variants={animations.slideDown} className="mb-10 text-center space-y-3 sm:mb-12">
+          <h1 className="text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
             <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
               Perseval
             </span>
           </h1>
-          <p className="text-xl mb-2" style={{ color: colors.text.secondary }}>
+          <p className="text-lg sm:text-xl" style={{ color: colors.text.secondary }}>
             AI-Powered Scam Detection & Trust Analysis
           </p>
-          <p className="text-sm" style={{ color: colors.text.tertiary }}>
+          <p className="text-sm sm:text-base" style={{ color: colors.text.tertiary }}>
             Analyze messages, social media posts, and influencer credibility in seconds
           </p>
         </motion.div>
@@ -281,11 +281,12 @@ export default function Home() {
                   />
 
                   {/* Quick Actions */}
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleExample}
+                      className="flex-1 min-w-[180px]"
                       icon={
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                           <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.898l-2.051-.683a1 1 0 01-.633-.633L6.95 5.684zM13.949 13.684a1 1 0 00-1.898 0l-.184.551a1 1 0 01-.632.633l-.551.183a1 1 0 000 1.898l.551.183a1 1 0 01.633.633l.183.551a1 1 0 001.898 0l.184-.551a1 1 0 01.632-.633l.551-.183a1 1 0 000-1.898l-.551-.184a1 1 0 01-.633-.632l-.183-.551z" />
@@ -298,6 +299,7 @@ export default function Home() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowOptionalFields(!showOptionalFields)}
+                      className="flex-1 min-w-[180px]"
                       icon={
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                           <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
@@ -396,7 +398,7 @@ export default function Home() {
                     {loading ? 'Analyzing...' : 'Analyze for Scams'}
                   </Button>
 
-                  <p className="text-xs text-center" style={{ color: colors.text.tertiary }}>
+                  <p className="mt-3 text-center text-xs sm:text-sm" style={{ color: colors.text.tertiary }}>
                     Press <kbd className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 font-mono">⌘+Enter</kbd> or <kbd className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 font-mono">Ctrl+Enter</kbd> to analyze
                   </p>
                 </div>
@@ -414,13 +416,13 @@ export default function Home() {
             >
               {/* Main Result Card */}
               <Card padding="lg" hover={false}>
-                <div className="flex items-start gap-6">
+                <div className="flex flex-col gap-6 md:flex-row md:items-start">
                   {/* Icon and Label */}
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 self-center md:self-start"
                   >
                     <div
                       className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl"
@@ -451,7 +453,7 @@ export default function Home() {
 
                     {/* Score Bar */}
                     <div className="mb-4">
-                      <div className="flex justify-between items-center mb-2">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <span className="text-sm font-medium" style={{ color: colors.text.secondary }}>
                           Confidence Score
                         </span>
@@ -493,7 +495,7 @@ export default function Home() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 mt-6">
+                <div className="mt-6 flex flex-wrap gap-3">
                   <Button variant="primary" onClick={handleClear} fullWidth>
                     Check Another
                   </Button>
@@ -502,7 +504,7 @@ export default function Home() {
 
               {/* Additional Trust Cards */}
               {(result.influencer_trust || result.company_trust || result.product_trust) && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {result.influencer_trust && (
                     <motion.div
                       onClick={() => setExpandedCard(expandedCard === 'influencer' ? null : 'influencer')}
@@ -608,7 +610,7 @@ export default function Home() {
                     exit={{ opacity: 0, height: 0 }}
                   >
                     <Card padding="lg">
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-xl font-bold" style={{ color: colors.text.primary }}>
                           Influencer Analysis: {result.influencer_trust.stats.handle}
                         </h3>
@@ -664,7 +666,7 @@ export default function Home() {
                       {/* Score Breakdown */}
                       <div className="space-y-3 mb-6">
                         <div>
-                          <div className="flex justify-between mb-1">
+                          <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
                             <span className="text-sm" style={{ color: colors.text.secondary }}>Message History</span>
                             <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
                               {(result.influencer_trust.message_history_score * 100).toFixed(0)}%
@@ -680,7 +682,7 @@ export default function Home() {
                           </div>
                         </div>
                         <div>
-                          <div className="flex justify-between mb-1">
+                          <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
                             <span className="text-sm" style={{ color: colors.text.secondary }}>Followers Score</span>
                             <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
                               {(result.influencer_trust.followers_score * 100).toFixed(0)}%
@@ -696,7 +698,7 @@ export default function Home() {
                           </div>
                         </div>
                         <div>
-                          <div className="flex justify-between mb-1">
+                          <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
                             <span className="text-sm" style={{ color: colors.text.secondary }}>Web Reputation</span>
                             <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
                               {(result.influencer_trust.web_reputation_score * 100).toFixed(0)}%
@@ -712,7 +714,7 @@ export default function Home() {
                           </div>
                         </div>
                         <div>
-                          <div className="flex justify-between mb-1">
+                          <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
                             <span className="text-sm" style={{ color: colors.text.secondary }}>Disclosure Score</span>
                             <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
                               {(result.influencer_trust.disclosure_score * 100).toFixed(0)}%
@@ -755,7 +757,7 @@ export default function Home() {
                     exit={{ opacity: 0, height: 0 }}
                   >
                     <Card padding="lg">
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-xl font-bold" style={{ color: colors.text.primary }}>
                           Company Analysis: {result.company_trust.name}
                         </h3>
@@ -813,7 +815,7 @@ export default function Home() {
                     exit={{ opacity: 0, height: 0 }}
                   >
                     <Card padding="lg">
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-xl font-bold" style={{ color: colors.text.primary }}>
                           Product Analysis: {result.product_trust.name}
                         </h3>

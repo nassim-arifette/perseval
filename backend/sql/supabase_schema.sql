@@ -251,3 +251,128 @@ WHERE email IS NOT NULL
 AND email_consented = true
 GROUP BY email
 ORDER BY subscribed_at DESC;
+
+-- User influencer submissions table (for crowdsourced marketplace additions)
+CREATE TABLE IF NOT EXISTS influencer_submissions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+    -- Submission data
+    handle TEXT NOT NULL,
+    platform TEXT NOT NULL DEFAULT 'instagram',
+    reason TEXT,  -- Why user thinks this influencer should be added (optional, max 500 chars)
+
+    -- Submitter tracking (anonymized for privacy)
+    submitter_ip_hash TEXT NOT NULL,  -- SHA-256 hash of IP for rate limiting
+    submitter_session_hash TEXT,  -- Optional session fingerprint
+
+    -- Submission status workflow
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'analyzing', 'approved', 'rejected')),
+
+    -- Automated analysis results (from Perplexity + Mistral)
+    analysis_data JSONB,  -- Full analysis results stored as JSON
+    trust_score DECIMAL(3, 2),  -- Automated trust score (0.00-1.00)
+    analysis_completed_at TIMESTAMPTZ,
+    analysis_error TEXT,  -- Error message if analysis failed
+
+    -- Admin review
+    reviewed_by TEXT,  -- Admin username/identifier
+    reviewed_at TIMESTAMPTZ,
+    admin_notes TEXT,  -- Admin's decision notes
+    rejection_reason TEXT,  -- Specific reason if rejected
+
+    -- Metadata
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT reason_length CHECK (char_length(reason) <= 500)
+);
+
+-- Create indexes for queries and admin workflow
+CREATE INDEX IF NOT EXISTS idx_submissions_status ON influencer_submissions(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_submissions_handle ON influencer_submissions(handle, platform);
+CREATE INDEX IF NOT EXISTS idx_submissions_submitter ON influencer_submissions(submitter_ip_hash, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_submissions_created ON influencer_submissions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_submissions_reviewed ON influencer_submissions(reviewed_at DESC) WHERE reviewed_at IS NOT NULL;
+
+-- Enable Row Level Security
+ALTER TABLE influencer_submissions ENABLE ROW LEVEL SECURITY;
+
+-- Service role can do anything (for backend API)
+CREATE POLICY "Service role can do anything on influencer_submissions"
+    ON influencer_submissions
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+-- Anon users can insert submissions (rate limited by function)
+CREATE POLICY "Anon can insert submissions"
+    ON influencer_submissions
+    FOR INSERT
+    TO anon
+    WITH CHECK (true);
+
+-- Function to check submission rate limit (max 3 submissions per IP per day)
+CREATE OR REPLACE FUNCTION check_submission_rate_limit(p_ip_hash TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    submission_count INTEGER;
+BEGIN
+    -- Check IP-based rate limit (max 3 submissions per 24 hours)
+    SELECT COUNT(*) INTO submission_count
+    FROM influencer_submissions
+    WHERE submitter_ip_hash = p_ip_hash
+    AND created_at > NOW() - INTERVAL '24 hours';
+
+    RETURN (submission_count < 3);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to prevent duplicate submissions (same handle/platform within 7 days)
+CREATE OR REPLACE FUNCTION check_duplicate_submission(p_handle TEXT, p_platform TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    existing_count INTEGER;
+BEGIN
+    -- Check for existing pending/approved submissions
+    SELECT COUNT(*) INTO existing_count
+    FROM influencer_submissions
+    WHERE LOWER(handle) = LOWER(p_handle)
+    AND platform = p_platform
+    AND status IN ('pending', 'analyzing', 'approved')
+    AND created_at > NOW() - INTERVAL '7 days';
+
+    RETURN (existing_count = 0);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_submission_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_influencer_submissions_timestamp
+    BEFORE UPDATE ON influencer_submissions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_submission_timestamp();
+
+-- View for admin dashboard (pending submissions needing review)
+CREATE OR REPLACE VIEW pending_submissions AS
+SELECT
+    id,
+    handle,
+    platform,
+    reason,
+    status,
+    trust_score,
+    analysis_completed_at,
+    created_at,
+    EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600 as hours_waiting
+FROM influencer_submissions
+WHERE status IN ('pending', 'analyzing')
+ORDER BY created_at ASC;

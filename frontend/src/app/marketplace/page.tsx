@@ -7,6 +7,7 @@ import { getThemeColors, theme, animations } from '../lib/theme';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
+import { SubmitInfluencerModal } from '../components/SubmitInfluencerModal';
 import type { MarketplaceInfluencer } from '../lib/types';
 
 const API_BASE = '/api';
@@ -22,6 +23,7 @@ export default function MarketplacePage() {
   const [trustFilter, setTrustFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [sortBy, setSortBy] = useState<'trust_score' | 'followers' | 'last_analyzed'>('trust_score');
   const [selectedInfluencer, setSelectedInfluencer] = useState<MarketplaceInfluencer | null>(null);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
 
   useEffect(() => {
     fetchInfluencers();
@@ -106,12 +108,28 @@ export default function MarketplacePage() {
       >
         {/* Header */}
         <motion.div variants={animations.slideUp} className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            Influencer Marketplace
-          </h1>
-          <p style={{ color: colors.text.secondary }}>
-            Discover vetted influencers with verified trust scores
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                Influencer Marketplace
+              </h1>
+              <p style={{ color: colors.text.secondary }}>
+                Discover vetted influencers with verified trust scores
+              </p>
+            </div>
+            <Button
+              onClick={() => setIsSubmitModalOpen(true)}
+              variant="primary"
+              className="whitespace-nowrap"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Submit Influencer
+              </span>
+            </Button>
+          </div>
         </motion.div>
 
         {/* Filters and Search */}
@@ -584,6 +602,16 @@ export default function MarketplacePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Submit Influencer Modal */}
+      <SubmitInfluencerModal
+        isOpen={isSubmitModalOpen}
+        onClose={() => setIsSubmitModalOpen(false)}
+        onSuccess={() => {
+          // Optionally refresh the influencers list after successful submission
+          fetchInfluencers();
+        }}
+      />
     </div>
   );
 }

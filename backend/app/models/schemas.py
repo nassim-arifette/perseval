@@ -291,3 +291,103 @@ class UserFeedbackResponse(BaseModel):
     id: str
     message: str = "Thank you for your feedback!"
     email_subscribed: bool = False
+
+
+# Influencer submission schemas
+class InfluencerSubmissionRequest(BaseModel):
+    """Request to submit an influencer for marketplace review."""
+    handle: str = Field(..., min_length=1, max_length=100, description="Influencer handle (with or without @ prefix)")
+    platform: MarketplacePlatform = Field("instagram", description="Social media platform")
+    reason: Optional[str] = Field(None, max_length=500, description="Why you think this influencer should be added")
+
+    @field_validator('handle')
+    @classmethod
+    def normalize_handle(cls, v: str) -> str:
+        """Normalize handle by removing @ prefix and extra whitespace."""
+        return v.strip().lstrip("@")
+
+    @field_validator('reason')
+    @classmethod
+    def sanitize_reason(cls, v: Optional[str]) -> Optional[str]:
+        """Sanitize reason field to prevent XSS."""
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            return None
+        # Basic XSS prevention
+        dangerous_patterns = ['<script', '</script', 'javascript:', 'onerror=', 'onclick=']
+        v_lower = v.lower()
+        for pattern in dangerous_patterns:
+            if pattern in v_lower:
+                raise ValueError("Reason contains potentially dangerous content")
+        return v
+
+
+class InfluencerSubmissionResponse(BaseModel):
+    """Response after submitting an influencer."""
+    id: str
+    handle: str
+    platform: str
+    status: Literal["pending", "analyzing", "approved", "rejected"]
+    message: str
+    created_at: str
+
+
+class InfluencerSubmission(BaseModel):
+    """Full influencer submission with analysis and admin review data."""
+    id: str
+    handle: str
+    platform: str
+    reason: Optional[str] = None
+
+    # Submission status
+    status: Literal["pending", "analyzing", "approved", "rejected"]
+
+    # Analysis results
+    analysis_data: Optional[dict] = None
+    trust_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    analysis_completed_at: Optional[str] = None
+    analysis_error: Optional[str] = None
+
+    # Admin review
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[str] = None
+    admin_notes: Optional[str] = None
+    rejection_reason: Optional[str] = None
+
+    # Metadata
+    created_at: str
+    updated_at: str
+
+
+class SubmissionListResponse(BaseModel):
+    """Response with paginated submissions list."""
+    submissions: List[InfluencerSubmission]
+    total: int
+    limit: int
+    offset: int
+
+
+class ReviewSubmissionRequest(BaseModel):
+    """Request to review a submission (admin only)."""
+    status: Literal["approved", "rejected"] = Field(..., description="Approval decision")
+    admin_notes: Optional[str] = Field(None, max_length=1000, description="Admin's review notes")
+    rejection_reason: Optional[str] = Field(None, max_length=500, description="Reason for rejection")
+    add_to_marketplace: bool = Field(True, description="Automatically add to marketplace if approved")
+
+    @field_validator('rejection_reason')
+    @classmethod
+    def validate_rejection_reason(cls, v: Optional[str], info) -> Optional[str]:
+        """Ensure rejection reason is provided when status is rejected."""
+        # Access the status from the values dict
+        if 'status' in info.data and info.data['status'] == 'rejected' and not v:
+            raise ValueError("Rejection reason is required when rejecting a submission")
+        return v
+
+
+class ReviewSubmissionResponse(BaseModel):
+    """Response after reviewing a submission."""
+    submission: InfluencerSubmission
+    message: str
+    marketplace_influencer_id: Optional[str] = None

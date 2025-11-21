@@ -17,6 +17,9 @@ from backend.app.models.schemas import (
     FullAnalysisSource,
     InfluencerStatsRequest,
     InfluencerStatsResponse,
+    InfluencerSubmission,
+    InfluencerSubmissionRequest,
+    InfluencerSubmissionResponse,
     InfluencerTrustResponse,
     InstagramPostAnalyzeRequest,
     MarketplaceInfluencer,
@@ -24,7 +27,10 @@ from backend.app.models.schemas import (
     MarketplaceListResponse,
     ProductTrustRequest,
     ProductTrustResponse,
+    ReviewSubmissionRequest,
+    ReviewSubmissionResponse,
     ScamPrediction,
+    SubmissionListResponse,
     TextAnalyzeRequest,
     UserFeedbackRequest,
     UserFeedbackResponse,
@@ -39,6 +45,17 @@ from backend.app.repositories.marketplace import (
     get_marketplace_influencer,
     list_marketplace_influencers,
     remove_from_marketplace,
+)
+from backend.app.repositories.submissions import (
+    check_duplicate_submission,
+    check_submission_rate_limit,
+    create_influencer_submission,
+    get_submission_by_id,
+    get_user_submissions,
+    hash_ip_address,
+    list_submissions,
+    review_submission,
+    update_submission_status,
 )
 from backend.app.services.influencer_probe import (
     get_instagram_post_from_url,
@@ -734,3 +751,475 @@ def get_subscribers(request: Request, authorization: Optional[str] = Header(None
         "total": len(subscribers),
         "subscribers": subscribers,
     }
+
+
+# Influencer submission endpoints
+@router.post("/submissions/influencers", response_model=InfluencerSubmissionResponse)
+def submit_influencer(req: InfluencerSubmissionRequest, request: Request):
+    """
+    Submit an influencer for marketplace consideration.
+
+    User-facing endpoint that allows anyone to suggest influencers for the marketplace.
+    Submissions are rate limited and go through admin review before being added.
+
+    Rate limits:
+    - 3 submissions per IP per 24 hours
+    - Duplicates rejected (same handle/platform within 7 days)
+    """
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Submissions are not available. Supabase must be configured.",
+        )
+
+    # Get client IP and hash it for privacy
+    client_ip = request.client.host if request.client else "unknown"
+    ip_hash = hash_ip_address(client_ip)
+
+    # Check rate limit (3 submissions per 24 hours per IP)
+    if not check_submission_rate_limit(ip_hash):
+        raise HTTPException(
+            status_code=429,
+            detail="You have reached the maximum number of submissions (3 per day). Please try again tomorrow.",
+        )
+
+    # Check for duplicate submissions
+    if not check_duplicate_submission(req.handle, req.platform):
+        raise HTTPException(
+            status_code=409,
+            detail=f"This influencer (@{req.handle}) has already been submitted recently. Please check back later.",
+        )
+
+    # Create submission
+    submission = create_influencer_submission(
+        handle=req.handle,
+        platform=req.platform,
+        submitter_ip_hash=ip_hash,
+        reason=req.reason,
+    )
+
+    if not submission:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create submission. Please try again later.",
+        )
+
+    return InfluencerSubmissionResponse(
+        id=str(submission["id"]),
+        handle=submission["handle"],
+        platform=submission["platform"],
+        status=submission["status"],
+        message="Thank you for your submission! We'll review it and add the influencer to the marketplace if approved.",
+        created_at=submission["created_at"],
+    )
+
+
+@router.get("/submissions/influencers/my", response_model=SubmissionListResponse)
+def get_my_submissions(request: Request, limit: int = 10):
+    """
+    Get submissions from the current user (by IP).
+
+    Allows users to check the status of their submissions.
+    Limited to 10 most recent submissions.
+    """
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Submissions are not available. Supabase must be configured.",
+        )
+
+    # Get client IP and hash it
+    client_ip = request.client.host if request.client else "unknown"
+    ip_hash = hash_ip_address(client_ip)
+
+    # Get user's submissions
+    submissions_data = get_user_submissions(ip_hash, limit=min(limit, 10))
+
+    submissions = [
+        InfluencerSubmission(
+            id=str(sub["id"]),
+            handle=sub["handle"],
+            platform=sub["platform"],
+            reason=sub.get("reason"),
+            status=sub["status"],
+            analysis_data=sub.get("analysis_data"),
+            trust_score=float(sub["trust_score"]) if sub.get("trust_score") else None,
+            analysis_completed_at=sub.get("analysis_completed_at"),
+            analysis_error=sub.get("analysis_error"),
+            reviewed_by=sub.get("reviewed_by"),
+            reviewed_at=sub.get("reviewed_at"),
+            admin_notes=sub.get("admin_notes"),
+            rejection_reason=sub.get("rejection_reason"),
+            created_at=sub["created_at"],
+            updated_at=sub["updated_at"],
+        )
+        for sub in submissions_data
+    ]
+
+    return SubmissionListResponse(
+        submissions=submissions,
+        total=len(submissions),
+        limit=limit,
+        offset=0,
+    )
+
+
+# Admin endpoints for managing submissions
+@router.get("/admin/submissions/influencers", response_model=SubmissionListResponse)
+def list_influencer_submissions(
+    request: Request,
+    status: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    List all influencer submissions (Admin only).
+
+    SECURITY: Admin authentication required via Authorization header.
+    Usage: Authorization: Bearer YOUR_API_KEY
+    """
+    # SECURITY: Verify admin authentication
+    verify_admin_auth(authorization)
+
+    # SECURITY: Rate limit admin endpoints
+    check_rate_limit(request, endpoint_group="admin")
+
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Submissions are not available. Supabase must be configured.",
+        )
+
+    # Get submissions
+    result = list_submissions(status=status, limit=limit, offset=offset)
+
+    submissions = [
+        InfluencerSubmission(
+            id=str(sub["id"]),
+            handle=sub["handle"],
+            platform=sub["platform"],
+            reason=sub.get("reason"),
+            status=sub["status"],
+            analysis_data=sub.get("analysis_data"),
+            trust_score=float(sub["trust_score"]) if sub.get("trust_score") else None,
+            analysis_completed_at=sub.get("analysis_completed_at"),
+            analysis_error=sub.get("analysis_error"),
+            reviewed_by=sub.get("reviewed_by"),
+            reviewed_at=sub.get("reviewed_at"),
+            admin_notes=sub.get("admin_notes"),
+            rejection_reason=sub.get("rejection_reason"),
+            created_at=sub["created_at"],
+            updated_at=sub["updated_at"],
+        )
+        for sub in result["data"]
+    ]
+
+    return SubmissionListResponse(
+        submissions=submissions,
+        total=result["total"],
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/admin/submissions/influencers/{submission_id}", response_model=InfluencerSubmission)
+def get_submission_detail(
+    submission_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Get detailed information for a specific submission (Admin only).
+
+    SECURITY: Admin authentication required via Authorization header.
+    """
+    # SECURITY: Verify admin authentication
+    verify_admin_auth(authorization)
+
+    # SECURITY: Rate limit admin endpoints
+    check_rate_limit(request, endpoint_group="admin")
+
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Submissions are not available. Supabase must be configured.",
+        )
+
+    submission = get_submission_by_id(submission_id)
+    if not submission:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Submission {submission_id} not found.",
+        )
+
+    return InfluencerSubmission(
+        id=str(submission["id"]),
+        handle=submission["handle"],
+        platform=submission["platform"],
+        reason=submission.get("reason"),
+        status=submission["status"],
+        analysis_data=submission.get("analysis_data"),
+        trust_score=float(submission["trust_score"]) if submission.get("trust_score") else None,
+        analysis_completed_at=submission.get("analysis_completed_at"),
+        analysis_error=submission.get("analysis_error"),
+        reviewed_by=submission.get("reviewed_by"),
+        reviewed_at=submission.get("reviewed_at"),
+        admin_notes=submission.get("admin_notes"),
+        rejection_reason=submission.get("rejection_reason"),
+        created_at=submission["created_at"],
+        updated_at=submission["updated_at"],
+    )
+
+
+@router.post("/admin/submissions/influencers/{submission_id}/analyze")
+async def analyze_submission(
+    submission_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Trigger automated analysis for a submission (Admin only).
+
+    Analyzes the influencer using Perplexity + Mistral and stores results.
+
+    SECURITY: Admin authentication required via Authorization header.
+    """
+    # SECURITY: Verify admin authentication
+    verify_admin_auth(authorization)
+
+    # SECURITY: Rate limit admin endpoints
+    check_rate_limit(request, endpoint_group="admin")
+
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Submissions are not available. Supabase must be configured.",
+        )
+
+    # Get submission
+    submission = get_submission_by_id(submission_id)
+    if not submission:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Submission {submission_id} not found.",
+        )
+
+    if submission["status"] not in ["pending", "analyzing"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot analyze submission with status '{submission['status']}'. Only pending submissions can be analyzed.",
+        )
+
+    # Update status to analyzing
+    update_submission_status(submission_id, "analyzing")
+
+    # Perform analysis
+    try:
+        influencer_trust = await build_influencer_trust_response(
+            submission["handle"],
+            max_posts=5
+        )
+
+        # Store analysis results
+        analysis_data = {
+            "stats": {
+                "full_name": influencer_trust.stats.full_name,
+                "bio": influencer_trust.stats.bio,
+                "followers": influencer_trust.stats.followers,
+                "following": influencer_trust.stats.following,
+                "posts_count": influencer_trust.stats.posts_count,
+                "is_verified": influencer_trust.stats.is_verified,
+            },
+            "trust": {
+                "trust_score": influencer_trust.trust_score,
+                "label": influencer_trust.label,
+                "message_history_score": influencer_trust.message_history_score,
+                "followers_score": influencer_trust.followers_score,
+                "web_reputation_score": influencer_trust.web_reputation_score,
+                "disclosure_score": influencer_trust.disclosure_score,
+                "notes": influencer_trust.notes,
+            }
+        }
+
+        # Update submission with analysis results
+        updated = update_submission_status(
+            submission_id,
+            "pending",  # Back to pending for admin review
+            analysis_data=analysis_data,
+            trust_score=influencer_trust.trust_score,
+        )
+
+        if not updated:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to store analysis results.",
+            )
+
+        return {
+            "message": "Analysis completed successfully.",
+            "submission_id": submission_id,
+            "trust_score": influencer_trust.trust_score,
+            "trust_label": influencer_trust.label,
+        }
+
+    except HTTPException:
+        # Update submission with error
+        update_submission_status(
+            submission_id,
+            "pending",
+            analysis_error="Analysis failed - HTTP error",
+        )
+        raise
+    except Exception as e:
+        # Update submission with error
+        update_submission_status(
+            submission_id,
+            "pending",
+            analysis_error=str(e)[:500],  # Limit error message length
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to analyze influencer: {str(e)}",
+        ) from e
+
+
+@router.post("/admin/submissions/influencers/{submission_id}/review", response_model=ReviewSubmissionResponse)
+async def review_influencer_submission(
+    submission_id: str,
+    req: ReviewSubmissionRequest,
+    request: Request,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Review a submission - approve or reject (Admin only).
+
+    If approved and add_to_marketplace=True, automatically adds to marketplace.
+
+    SECURITY: Admin authentication required via Authorization header.
+    Usage: Authorization: Bearer YOUR_API_KEY
+    """
+    # SECURITY: Verify admin authentication
+    verify_admin_auth(authorization)
+
+    # SECURITY: Rate limit admin endpoints
+    check_rate_limit(request, endpoint_group="admin")
+
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Submissions are not available. Supabase must be configured.",
+        )
+
+    # Get submission
+    submission = get_submission_by_id(submission_id)
+    if not submission:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Submission {submission_id} not found.",
+        )
+
+    if submission["status"] in ["approved", "rejected"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Submission has already been {submission['status']}.",
+        )
+
+    # Review submission
+    reviewed = review_submission(
+        submission_id=submission_id,
+        status=req.status,
+        reviewed_by="admin",  # Could be extracted from auth token
+        admin_notes=req.admin_notes,
+        rejection_reason=req.rejection_reason,
+    )
+
+    if not reviewed:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to review submission.",
+        )
+
+    marketplace_influencer_id = None
+
+    # If approved and should add to marketplace
+    if req.status == "approved" and req.add_to_marketplace:
+        # Check if analysis exists
+        if not submission.get("analysis_data"):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot add to marketplace: submission has not been analyzed yet. Please run analysis first.",
+            )
+
+        try:
+            analysis = submission["analysis_data"]
+            stats = analysis.get("stats", {})
+            trust = analysis.get("trust", {})
+
+            profile_data = {
+                "full_name": stats.get("full_name"),
+                "bio": stats.get("bio"),
+                "url": f"https://instagram.com/{submission['handle']}",
+                "followers": stats.get("followers"),
+                "following": stats.get("following"),
+                "posts_count": stats.get("posts_count"),
+                "is_verified": stats.get("is_verified", False),
+            }
+
+            trust_data = {
+                "trust_score": trust.get("trust_score"),
+                "label": trust.get("label"),
+                "message_history_score": trust.get("message_history_score"),
+                "followers_score": trust.get("followers_score"),
+                "web_reputation_score": trust.get("web_reputation_score"),
+                "disclosure_score": trust.get("disclosure_score"),
+                "notes": trust.get("notes"),
+                "issues": [],
+            }
+
+            # Add to marketplace
+            marketplace_record = add_influencer_to_marketplace(
+                handle=submission["handle"],
+                platform=submission["platform"],
+                profile_data=profile_data,
+                trust_data=trust_data,
+                admin_notes=req.admin_notes,
+                is_featured=False,
+            )
+
+            if marketplace_record:
+                marketplace_influencer_id = str(marketplace_record["id"])
+
+        except Exception as e:
+            print(f"[Submissions] Failed to add to marketplace: {e}")
+            # Don't fail the review if marketplace addition fails
+            pass
+
+    # Convert reviewed submission to response model
+    submission_response = InfluencerSubmission(
+        id=str(reviewed["id"]),
+        handle=reviewed["handle"],
+        platform=reviewed["platform"],
+        reason=reviewed.get("reason"),
+        status=reviewed["status"],
+        analysis_data=reviewed.get("analysis_data"),
+        trust_score=float(reviewed["trust_score"]) if reviewed.get("trust_score") else None,
+        analysis_completed_at=reviewed.get("analysis_completed_at"),
+        analysis_error=reviewed.get("analysis_error"),
+        reviewed_by=reviewed.get("reviewed_by"),
+        reviewed_at=reviewed.get("reviewed_at"),
+        admin_notes=reviewed.get("admin_notes"),
+        rejection_reason=reviewed.get("rejection_reason"),
+        created_at=reviewed["created_at"],
+        updated_at=reviewed["updated_at"],
+    )
+
+    message = f"Submission {req.status}."
+    if marketplace_influencer_id:
+        message += f" Influencer added to marketplace."
+
+    return ReviewSubmissionResponse(
+        submission=submission_response,
+        message=message,
+        marketplace_influencer_id=marketplace_influencer_id,
+    )
