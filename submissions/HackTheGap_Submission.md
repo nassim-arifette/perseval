@@ -73,7 +73,7 @@ We define success as the number of fully processed `/analyze/full` runs because 
 | Completed trust checks | **87** | Count of successful `check_and_increment_rate_limit` RPC calls for endpoint group “analysis”. |
 | Unique sessions | **31** | Distinct `client_ip` rows in the same window (Supabase `rate_limits` table). |
 | Scam-labeled outputs | **33 (38%)** | Manual tally from saved analyses during beta (local exports shared by testers). |
-| Newsletter opt-ins / waitlist | **42** | `/admin/newsletter/subscribers` export (schema in `backend/supabase_schema.sql`). |
+| Newsletter opt-ins / waitlist | **42** | `/admin/newsletter/subscribers` export (schema in `backend/sql/supabase_schema.sql`). |
 | Post-analysis feedback | **15 submissions (11 good / 3 medium / 1 bad)** | Stored via `user_feedback` table; emojis from the in-product `FeedbackForm`. |
 
 ### User journey (tracked steps)
@@ -118,7 +118,7 @@ While the raw numbers are still in the dozens (typical for a 48h sprint), every 
 ### Tech stack
 - **Languages & frameworks:** FastAPI + Pydantic backend, Next.js 14 + TypeScript frontend, Framer Motion for animation, Tailwind-inspired tokens in `frontend/src/app/lib/theme.ts`.  
 - **AI & data providers:** Mistral (open-mixtral-8x22b) via `backend/services/mistral.py`, Serper.dev & Perplexity for web snippets, Instaloader & TikTok (optional) scrapers, Supabase for caching + rate limiting.  
-- **Storage & metrics:** Supabase tables defined in `backend/supabase_schema.sql` (cache tables, `marketplace_influencers`, `user_feedback`, newsletter view) plus `backend/rate_limit_schema.sql` for the rate limiting events we use as analytics. Local storage powers the History/Dashboard for instant UX.  
+- **Storage & metrics:** Supabase tables defined in `backend/sql/supabase_schema.sql` (apply base once, then run any files in `backend/sql/migrations`) plus `backend/rate_limit_schema.sql` for the rate limiting events we use as analytics. Local storage powers the History/Dashboard for instant UX.  
 
 ### How we built it in hackathon time
 1. **Single pipeline controller.** `backend/api/routes.py` orchestrates everything — URL parsing, TikTok/Instagram fetchers, Mistral calls, trust aggregation, and optional company/product lookups. This let us iterate quickly because every experiment touched one file.  
@@ -131,4 +131,3 @@ While the raw numbers are still in the dozens (typical for a 48h sprint), every 
 - Add authentication + user-level data instead of IP-based tracking so teams can collaborate.  
 - Finish marketplace enrichment (contact CTAs, pricing data) once Supabase has more organic entries.  
 - Broaden acquisition (TikTok, Twitter watchlists) using the same Supabase-backed marketplace endpoints.  
-

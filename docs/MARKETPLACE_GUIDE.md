@@ -39,6 +39,8 @@ The marketplace uses a sophisticated multi-factor trust scoring system:
 
 #### 1. Database Schema (`backend/sql/supabase_schema.sql`)
 
+> After provisioning the base schema above, apply the incremental scripts in `backend/sql/migrations` in order. Each migration is idempotent, so you can re-run them whenever new files appear without worrying about existing data.
+
 ```sql
 -- Marketplace influencers table
 CREATE TABLE marketplace_influencers (
@@ -239,6 +241,9 @@ Run the schema in your Supabase SQL editor:
 # Execute the schema file
 cat backend/sql/supabase_schema.sql
 # Copy and paste into Supabase SQL editor
+```
+
+Then apply each file in `backend/sql/migrations` in numeric order. These scripts only add/alter objects with `IF NOT EXISTS`, so re-running them later is safe when new migrations are added.
 ```
 
 ### 3. Generate Admin API Key

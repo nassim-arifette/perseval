@@ -10,7 +10,7 @@ This feature allows users to submit influencer handles for marketplace considera
 
 **Table: `influencer_submissions`**
 
-Located in: `backend/sql/supabase_schema.sql`
+Located in: `backend/sql/supabase_schema.sql` (base schema) with incremental updates living in `backend/sql/migrations`.
 
 Key fields:
 - `handle`, `platform` - Influencer identification
@@ -215,6 +215,8 @@ Run in Supabase SQL Editor:
 -- - update_submission_timestamp() trigger
 -- - pending_submissions view
 ```
+
+After that, run every SQL file in `backend/sql/migrations` (lowest number first). The migrations only add/alter columns and can be safely re-run when new updates ship.
 
 ## Usage Examples
 

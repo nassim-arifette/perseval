@@ -7,13 +7,62 @@ from typing import Any, Dict, Optional
 
 from backend.app.integrations.supabase import get_supabase_client
 
-PUBLIC_MARKETPLACE_COLUMNS = (
-    "id,handle,display_name,platform,followers_count,following_count,posts_count,is_verified,"
-    "overall_trust_score,trust_label,message_history_score,"
-    "followers_score,web_reputation_score,disclosure_score,"
-    "profile_url,bio,is_featured,analysis_summary,issues,"
-    "last_analyzed_at,added_to_marketplace_at,created_at,updated_at"
-)
+BASE_MARKETPLACE_COLUMNS = [
+    "id",
+    "handle",
+    "display_name",
+    "platform",
+    "followers_count",
+    "following_count",
+    "posts_count",
+    "is_verified",
+    "overall_trust_score",
+    "trust_label",
+    "message_history_score",
+    "followers_score",
+    "web_reputation_score",
+    "disclosure_score",
+    "profile_url",
+    "bio",
+    "is_featured",
+    "analysis_summary",
+    "issues",
+    "last_analyzed_at",
+    "added_to_marketplace_at",
+    "created_at",
+    "updated_at",
+]
+
+OPTIONAL_MARKETPLACE_COLUMNS = ["user_trust_score", "total_votes"]
+_column_support_cache: Dict[str, bool] = {}
+
+
+def _is_optional_column_available(client, column: str) -> bool:
+    """
+    Detect whether a Supabase table column exists so we can gracefully
+    support environments that have not run the latest migrations.
+    """
+    if column in _column_support_cache:
+        return _column_support_cache[column]
+
+    try:
+        client.table("marketplace_influencers").select(column).limit(1).execute()
+        _column_support_cache[column] = True
+    except Exception as exc:
+        if "column" in str(exc) and column in str(exc):
+            print(f"[Supabase] Column '{column}' missing on marketplace_influencers – using defaults.")
+        else:
+            print(f"[Supabase] Error checking column '{column}': {exc}")
+        _column_support_cache[column] = False
+    return _column_support_cache[column]
+
+
+def _get_marketplace_select_columns(client) -> str:
+    columns = list(BASE_MARKETPLACE_COLUMNS)
+    for column in OPTIONAL_MARKETPLACE_COLUMNS:
+        if _is_optional_column_available(client, column):
+            columns.append(column)
+    return ",".join(columns)
 
 
 def _normalize_handle(handle: str) -> str:
@@ -77,9 +126,10 @@ def get_marketplace_influencer(handle: str, platform: str = "instagram") -> Opti
         return None
 
     try:
+        select_columns = _get_marketplace_select_columns(client)
         response = (
             client.table("marketplace_influencers")
-            .select(PUBLIC_MARKETPLACE_COLUMNS)
+            .select(select_columns)
             .eq("handle", _normalize_handle(handle))
             .eq("platform", platform)
             .limit(1)
@@ -107,8 +157,9 @@ def list_marketplace_influencers(
         return {"data": [], "total": 0}
 
     try:
+        select_columns = _get_marketplace_select_columns(client)
         query = client.table("marketplace_influencers").select(
-            PUBLIC_MARKETPLACE_COLUMNS, count="exact"
+            select_columns, count="exact"
         )
 
         if search:

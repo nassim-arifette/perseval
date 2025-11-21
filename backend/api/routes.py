@@ -34,6 +34,10 @@ from backend.app.models.schemas import (
     TextAnalyzeRequest,
     UserFeedbackRequest,
     UserFeedbackResponse,
+    UserVoteStatus,
+    VoteRequest,
+    VoteResponse,
+    VoteStats,
 )
 from backend.app.repositories.feedback import (
     check_feedback_rate_limit,
@@ -52,10 +56,19 @@ from backend.app.repositories.submissions import (
     create_influencer_submission,
     get_submission_by_id,
     get_user_submissions,
-    hash_ip_address,
     list_submissions,
     review_submission,
     update_submission_status,
+)
+from backend.app.repositories.submissions import hash_ip_address as hash_ip_submissions
+from backend.app.repositories.votes import (
+    check_vote_rate_limit,
+    delete_vote,
+    get_user_vote,
+    get_vote_stats,
+    hash_ip_address,
+    submit_vote,
+    update_marketplace_user_score,
 )
 from backend.app.services.influencer_probe import (
     get_instagram_post_from_url,
@@ -457,6 +470,8 @@ def list_marketplace(
             followers_score=float(record["followers_score"]) if record.get("followers_score") else None,
             web_reputation_score=float(record["web_reputation_score"]) if record.get("web_reputation_score") else None,
             disclosure_score=float(record["disclosure_score"]) if record.get("disclosure_score") else None,
+            user_trust_score=float(record.get("user_trust_score", 0.50)),
+            total_votes=record.get("total_votes", 0),
             analysis_summary=record.get("analysis_summary"),
             issues=record.get("issues", []),
             last_analyzed_at=record["last_analyzed_at"],
@@ -510,6 +525,8 @@ def get_marketplace_influencer_detail(handle: str, platform: str = "instagram"):
         followers_score=float(record["followers_score"]) if record.get("followers_score") else None,
         web_reputation_score=float(record["web_reputation_score"]) if record.get("web_reputation_score") else None,
         disclosure_score=float(record["disclosure_score"]) if record.get("disclosure_score") else None,
+        user_trust_score=float(record.get("user_trust_score", 0.50)),
+        total_votes=record.get("total_votes", 0),
         analysis_summary=record.get("analysis_summary"),
         issues=record.get("issues", []),
         last_analyzed_at=record["last_analyzed_at"],
@@ -774,7 +791,7 @@ def submit_influencer(req: InfluencerSubmissionRequest, request: Request):
 
     # Get client IP and hash it for privacy
     client_ip = request.client.host if request.client else "unknown"
-    ip_hash = hash_ip_address(client_ip)
+    ip_hash = hash_ip_submissions(client_ip)
 
     # Check rate limit (3 submissions per 24 hours per IP)
     if not check_submission_rate_limit(ip_hash):
@@ -830,7 +847,7 @@ def get_my_submissions(request: Request, limit: int = 10):
 
     # Get client IP and hash it
     client_ip = request.client.host if request.client else "unknown"
-    ip_hash = hash_ip_address(client_ip)
+    ip_hash = hash_ip_submissions(client_ip)
 
     # Get user's submissions
     submissions_data = get_user_submissions(ip_hash, limit=min(limit, 10))
@@ -1223,3 +1240,140 @@ async def review_influencer_submission(
         message=message,
         marketplace_influencer_id=marketplace_influencer_id,
     )
+
+
+# Voting endpoints (crowdsourcing)
+@router.post("/votes/influencers", response_model=VoteResponse)
+def vote_on_influencer(req: VoteRequest, request: Request):
+    """
+    Vote on an influencer (trust or distrust).
+
+    Users can vote once per influencer. Subsequent votes update their existing vote.
+    Rate limited to 20 votes per hour to prevent spam.
+
+    Vote types:
+    - 'trust': Thumbs up - you trust this influencer
+    - 'distrust': Thumbs down - you don't trust this influencer
+    """
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Voting system is not available. Supabase must be configured.",
+        )
+
+    # Get client IP and hash it for privacy
+    client_ip = request.client.host if request.client else "unknown"
+    ip_hash = hash_ip_address(client_ip)
+
+    # Check rate limit (20 votes per hour)
+    if not check_vote_rate_limit(ip_hash):
+        raise HTTPException(
+            status_code=429,
+            detail="You have exceeded the voting rate limit (20 votes per hour). Please try again later.",
+        )
+
+    # Submit vote (will upsert if user already voted)
+    vote = submit_vote(
+        handle=req.handle,
+        platform=req.platform,
+        vote_type=req.vote_type,
+        voter_ip_hash=ip_hash,
+        comment=req.comment,
+    )
+
+    if not vote:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to submit vote. Please try again later.",
+        )
+
+    # Get updated vote statistics
+    stats = get_vote_stats(req.handle, req.platform)
+
+    # Update marketplace influencer's user score (if exists)
+    update_marketplace_user_score(req.handle, req.platform)
+
+    return VoteResponse(
+        handle=req.handle,
+        platform=req.platform,
+        vote_type=req.vote_type,
+        message="Thank you for your vote! Your feedback helps others make informed decisions.",
+        vote_stats=VoteStats(**stats),
+    )
+
+
+@router.get("/votes/influencers/{handle}", response_model=UserVoteStatus)
+def get_influencer_vote_status(
+    handle: str,
+    request: Request,
+    platform: str = "instagram"
+):
+    """
+    Get voting statistics and current user's vote for an influencer.
+
+    Returns:
+    - Vote statistics (trust/distrust counts, total votes, user trust score)
+    - Current user's vote (if any)
+    """
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Voting system is not available. Supabase must be configured.",
+        )
+
+    # Get client IP and hash it
+    client_ip = request.client.host if request.client else "unknown"
+    ip_hash = hash_ip_address(client_ip)
+
+    # Get user's current vote
+    user_vote = get_user_vote(handle, platform, ip_hash)
+
+    # Get vote statistics
+    stats = get_vote_stats(handle, platform)
+
+    return UserVoteStatus(
+        handle=handle,
+        platform=platform,
+        user_vote=user_vote,
+        vote_stats=VoteStats(**stats),
+    )
+
+
+@router.delete("/votes/influencers/{handle}")
+def remove_vote(
+    handle: str,
+    request: Request,
+    platform: str = "instagram"
+):
+    """
+    Remove your vote for an influencer.
+
+    This allows users to retract their vote if they change their mind.
+    """
+    if not is_supabase_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Voting system is not available. Supabase must be configured.",
+        )
+
+    # Get client IP and hash it
+    client_ip = request.client.host if request.client else "unknown"
+    ip_hash = hash_ip_address(client_ip)
+
+    # Delete vote
+    success = delete_vote(handle, platform, ip_hash)
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="No vote found to remove.",
+        )
+
+    # Update marketplace influencer's user score
+    update_marketplace_user_score(handle, platform)
+
+    return {
+        "message": "Vote removed successfully.",
+        "handle": handle,
+        "platform": platform,
+    }

@@ -110,8 +110,9 @@ To enable caching and significantly reduce API costs:
 
 2. **Run the schema SQL**:
    - In your Supabase dashboard, go to the SQL Editor
-   - Open `backend/supabase_schema.sql` and copy its contents
-   - Paste and run it in the SQL Editor to create the cache tables
+   - Open `backend/sql/supabase_schema.sql` and copy its contents
+   - Paste and run it in the SQL Editor to create the base tables/policies
+   - Then apply any files inside `backend/sql/migrations` in ascending order (each file is idempotent, so you can re-run them safely when new migrations appear)
 
 3. **Get your credentials**:
    - In Project Settings → API, copy your:

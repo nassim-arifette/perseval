@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { SubmitInfluencerModal } from '../components/SubmitInfluencerModal';
+import { VotingButtons } from '../components/VotingButtons';
 import type { MarketplaceInfluencer } from '../lib/types';
 
 const API_BASE = '/api';
@@ -351,6 +352,14 @@ export default function MarketplacePage() {
                         </div>
                       </div>
 
+                      {/* Voting Buttons */}
+                      <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                        <VotingButtons
+                          handle={influencer.handle}
+                          platform={influencer.platform}
+                        />
+                      </div>
+
                       {/* Trust Label */}
                       <div
                         className="w-full py-2 rounded-lg text-center font-semibold text-sm capitalize"
@@ -550,7 +559,41 @@ export default function MarketplacePage() {
                         </div>
                       </div>
                     )}
+                    {selectedInfluencer.user_trust_score !== null && selectedInfluencer.user_trust_score !== undefined && (
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm flex items-center gap-2" style={{ color: colors.text.secondary }}>
+                            Community Score
+                            <span className="text-xs" style={{ color: colors.text.tertiary }}>
+                              ({selectedInfluencer.total_votes || 0} votes)
+                            </span>
+                          </span>
+                          <span className="text-sm font-bold" style={{ color: colors.text.primary }}>
+                            {((selectedInfluencer.user_trust_score ?? 0.5) * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full" style={{ backgroundColor: colors.border.default }}>
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ backgroundColor: colors.accent.success }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(selectedInfluencer.user_trust_score ?? 0.5) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
+                </div>
+
+                {/* Community Voting Section */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-4" style={{ color: colors.text.primary }}>
+                    Community Voting
+                  </h3>
+                  <VotingButtons
+                    handle={selectedInfluencer.handle}
+                    platform={selectedInfluencer.platform}
+                  />
                 </div>
 
                 {/* Analysis Summary */}

@@ -189,6 +189,10 @@ class MarketplaceInfluencer(BaseModel):
     followers_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     web_reputation_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     disclosure_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    user_trust_score: Optional[float] = Field(0.50, ge=0.0, le=1.0)  # Crowdsourced user votes
+
+    # Voting metadata
+    total_votes: Optional[int] = Field(0, ge=0)
 
     # Additional metadata
     analysis_summary: Optional[str] = None
@@ -391,3 +395,60 @@ class ReviewSubmissionResponse(BaseModel):
     submission: InfluencerSubmission
     message: str
     marketplace_influencer_id: Optional[str] = None
+
+
+# Voting schemas
+class VoteRequest(BaseModel):
+    """Request to vote on an influencer."""
+    handle: str = Field(..., min_length=1, max_length=100, description="Influencer handle (with or without @ prefix)")
+    platform: MarketplacePlatform = Field("instagram", description="Social media platform")
+    vote_type: Literal["trust", "distrust"] = Field(..., description="trust = thumbs up, distrust = thumbs down")
+    comment: Optional[str] = Field(None, max_length=500, description="Optional comment explaining your vote")
+
+    @field_validator('handle')
+    @classmethod
+    def normalize_handle(cls, v: str) -> str:
+        """Normalize handle by removing @ prefix and extra whitespace."""
+        return v.strip().lstrip("@")
+
+    @field_validator('comment')
+    @classmethod
+    def sanitize_comment(cls, v: Optional[str]) -> Optional[str]:
+        """Sanitize comment field to prevent XSS."""
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            return None
+        # Basic XSS prevention
+        dangerous_patterns = ['<script', '</script', 'javascript:', 'onerror=', 'onclick=']
+        v_lower = v.lower()
+        for pattern in dangerous_patterns:
+            if pattern in v_lower:
+                raise ValueError("Comment contains potentially dangerous content")
+        return v
+
+
+class VoteResponse(BaseModel):
+    """Response after voting."""
+    handle: str
+    platform: str
+    vote_type: str
+    message: str
+    vote_stats: "VoteStats"
+
+
+class VoteStats(BaseModel):
+    """Voting statistics for an influencer."""
+    trust_votes: int = Field(..., ge=0)
+    distrust_votes: int = Field(..., ge=0)
+    total_votes: int = Field(..., ge=0)
+    user_trust_score: float = Field(..., ge=0.0, le=1.0)
+
+
+class UserVoteStatus(BaseModel):
+    """User's current vote status for an influencer."""
+    handle: str
+    platform: str
+    user_vote: Optional[Literal["trust", "distrust"]] = None
+    vote_stats: VoteStats

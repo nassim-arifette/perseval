@@ -49,6 +49,7 @@ ALTER TABLE product_cache ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for service role (backend API)
 -- These policies allow the service role to do anything
+DROP POLICY IF EXISTS "Service role can do anything on influencer_cache" ON influencer_cache;
 CREATE POLICY "Service role can do anything on influencer_cache"
     ON influencer_cache
     FOR ALL
@@ -56,6 +57,7 @@ CREATE POLICY "Service role can do anything on influencer_cache"
     USING (true)
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Service role can do anything on company_cache" ON company_cache;
 CREATE POLICY "Service role can do anything on company_cache"
     ON company_cache
     FOR ALL
@@ -63,6 +65,7 @@ CREATE POLICY "Service role can do anything on company_cache"
     USING (true)
     WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Service role can do anything on product_cache" ON product_cache;
 CREATE POLICY "Service role can do anything on product_cache"
     ON product_cache
     FOR ALL
@@ -143,6 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_marketplace_featured ON marketplace_influencers(i
 ALTER TABLE marketplace_influencers ENABLE ROW LEVEL SECURITY;
 
 -- Service role can do anything
+DROP POLICY IF EXISTS "Service role can do anything on marketplace_influencers" ON marketplace_influencers;
 CREATE POLICY "Service role can do anything on marketplace_influencers"
     ON marketplace_influencers
     FOR ALL
@@ -151,6 +155,7 @@ CREATE POLICY "Service role can do anything on marketplace_influencers"
     WITH CHECK (true);
 
 -- Public read access (anyone can view marketplace)
+DROP POLICY IF EXISTS "Public can read marketplace_influencers" ON marketplace_influencers;
 CREATE POLICY "Public can read marketplace_influencers"
     ON marketplace_influencers
     FOR SELECT
@@ -198,6 +203,7 @@ CREATE INDEX IF NOT EXISTS idx_feedback_session_hash ON user_feedback(session_ha
 ALTER TABLE user_feedback ENABLE ROW LEVEL SECURITY;
 
 -- Service role can do anything
+DROP POLICY IF EXISTS "Service role can do anything on user_feedback" ON user_feedback;
 CREATE POLICY "Service role can do anything on user_feedback"
     ON user_feedback
     FOR ALL
@@ -206,6 +212,7 @@ CREATE POLICY "Service role can do anything on user_feedback"
     WITH CHECK (true);
 
 -- Anon users can only insert their own feedback (not read others)
+DROP POLICY IF EXISTS "Anon can insert feedback" ON user_feedback;
 CREATE POLICY "Anon can insert feedback"
     ON user_feedback
     FOR INSERT
@@ -299,6 +306,7 @@ CREATE INDEX IF NOT EXISTS idx_submissions_reviewed ON influencer_submissions(re
 ALTER TABLE influencer_submissions ENABLE ROW LEVEL SECURITY;
 
 -- Service role can do anything (for backend API)
+DROP POLICY IF EXISTS "Service role can do anything on influencer_submissions" ON influencer_submissions;
 CREATE POLICY "Service role can do anything on influencer_submissions"
     ON influencer_submissions
     FOR ALL
@@ -307,6 +315,7 @@ CREATE POLICY "Service role can do anything on influencer_submissions"
     WITH CHECK (true);
 
 -- Anon users can insert submissions (rate limited by function)
+DROP POLICY IF EXISTS "Anon can insert submissions" ON influencer_submissions;
 CREATE POLICY "Anon can insert submissions"
     ON influencer_submissions
     FOR INSERT
@@ -356,6 +365,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_influencer_submissions_timestamp ON influencer_submissions;
 CREATE TRIGGER update_influencer_submissions_timestamp
     BEFORE UPDATE ON influencer_submissions
     FOR EACH ROW
@@ -376,3 +386,168 @@ SELECT
 FROM influencer_submissions
 WHERE status IN ('pending', 'analyzing')
 ORDER BY created_at ASC;
+
+-- User votes table (crowdsourcing trust scores)
+CREATE TABLE IF NOT EXISTS influencer_votes (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+    -- Vote target
+    influencer_handle TEXT NOT NULL,
+    influencer_platform TEXT NOT NULL DEFAULT 'instagram',
+
+    -- Vote data
+    vote_type TEXT NOT NULL CHECK (vote_type IN ('trust', 'distrust')),  -- trust = thumbs up, distrust = thumbs down
+    vote_weight DECIMAL(3, 2) DEFAULT 1.00 CHECK (vote_weight >= 0 AND vote_weight <= 1.00),  -- Weight for weighted voting (future use)
+
+    -- Voter tracking (anonymized for privacy)
+    voter_ip_hash TEXT NOT NULL,  -- SHA-256 hash of IP address
+    voter_session_hash TEXT,  -- Optional session fingerprint
+
+    -- Optional feedback
+    comment TEXT,  -- Optional comment explaining the vote (max 500 chars)
+
+    -- Metadata
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT comment_length CHECK (char_length(comment) <= 500),
+    -- One vote per IP per influencer (can update vote, not create duplicate)
+    UNIQUE(influencer_handle, influencer_platform, voter_ip_hash)
+);
+
+-- Create indexes for vote queries and aggregations
+CREATE INDEX IF NOT EXISTS idx_votes_influencer ON influencer_votes(influencer_handle, influencer_platform);
+CREATE INDEX IF NOT EXISTS idx_votes_type ON influencer_votes(vote_type);
+CREATE INDEX IF NOT EXISTS idx_votes_created ON influencer_votes(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_votes_voter ON influencer_votes(voter_ip_hash);
+
+-- Enable Row Level Security
+ALTER TABLE influencer_votes ENABLE ROW LEVEL SECURITY;
+
+-- Service role can do anything (for backend API)
+DROP POLICY IF EXISTS "Service role can do anything on influencer_votes" ON influencer_votes;
+CREATE POLICY "Service role can do anything on influencer_votes"
+    ON influencer_votes
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+-- Anon users can insert and update their own votes
+DROP POLICY IF EXISTS "Anon can insert votes" ON influencer_votes;
+CREATE POLICY "Anon can insert votes"
+    ON influencer_votes
+    FOR INSERT
+    TO anon
+    WITH CHECK (true);
+
+-- Function to check vote rate limit (max 20 votes per IP per hour to prevent spam)
+CREATE OR REPLACE FUNCTION check_vote_rate_limit(p_ip_hash TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    vote_count INTEGER;
+BEGIN
+    -- Check IP-based rate limit (max 20 votes per hour)
+    SELECT COUNT(*) INTO vote_count
+    FROM influencer_votes
+    WHERE voter_ip_hash = p_ip_hash
+    AND created_at > NOW() - INTERVAL '1 hour';
+
+    RETURN (vote_count < 20);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to calculate user trust score for an influencer
+CREATE OR REPLACE FUNCTION calculate_user_trust_score(p_handle TEXT, p_platform TEXT)
+RETURNS DECIMAL(3, 2) AS $$
+DECLARE
+    trust_votes INTEGER;
+    distrust_votes INTEGER;
+    total_votes INTEGER;
+    trust_score DECIMAL(3, 2);
+BEGIN
+    -- Count trust votes
+    SELECT COUNT(*) INTO trust_votes
+    FROM influencer_votes
+    WHERE LOWER(influencer_handle) = LOWER(p_handle)
+    AND influencer_platform = p_platform
+    AND vote_type = 'trust';
+
+    -- Count distrust votes
+    SELECT COUNT(*) INTO distrust_votes
+    FROM influencer_votes
+    WHERE LOWER(influencer_handle) = LOWER(p_handle)
+    AND influencer_platform = p_platform
+    AND vote_type = 'distrust';
+
+    total_votes := trust_votes + distrust_votes;
+
+    -- If no votes, return 0.50 (neutral)
+    IF total_votes = 0 THEN
+        RETURN 0.50;
+    END IF;
+
+    -- Calculate score: trust_votes / total_votes
+    -- Add smoothing: (trust_votes + 2) / (total_votes + 4) to prevent extreme scores with few votes
+    trust_score := (trust_votes::DECIMAL + 2) / (total_votes::DECIMAL + 4);
+
+    -- Ensure score is between 0.00 and 1.00
+    trust_score := GREATEST(0.00, LEAST(1.00, trust_score));
+
+    RETURN trust_score;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get user's vote for an influencer
+CREATE OR REPLACE FUNCTION get_user_vote(p_handle TEXT, p_platform TEXT, p_ip_hash TEXT)
+RETURNS TEXT AS $$
+DECLARE
+    vote_type TEXT;
+BEGIN
+    SELECT influencer_votes.vote_type INTO vote_type
+    FROM influencer_votes
+    WHERE LOWER(influencer_handle) = LOWER(p_handle)
+    AND influencer_platform = p_platform
+    AND voter_ip_hash = p_ip_hash;
+
+    RETURN vote_type;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to update updated_at timestamp on votes
+CREATE OR REPLACE FUNCTION update_vote_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_influencer_votes_timestamp ON influencer_votes;
+CREATE TRIGGER update_influencer_votes_timestamp
+    BEFORE UPDATE ON influencer_votes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_vote_timestamp();
+
+-- Add user_trust_score to marketplace_influencers table
+ALTER TABLE marketplace_influencers
+ADD COLUMN IF NOT EXISTS user_trust_score DECIMAL(3, 2) DEFAULT 0.50,
+ADD COLUMN IF NOT EXISTS total_votes INTEGER DEFAULT 0;
+
+-- Create index for user trust score
+CREATE INDEX IF NOT EXISTS idx_marketplace_user_trust_score ON marketplace_influencers(user_trust_score DESC);
+
+-- View for vote statistics by influencer
+CREATE OR REPLACE VIEW influencer_vote_stats AS
+SELECT
+    influencer_handle,
+    influencer_platform,
+    COUNT(*) as total_votes,
+    SUM(CASE WHEN vote_type = 'trust' THEN 1 ELSE 0 END) as trust_votes,
+    SUM(CASE WHEN vote_type = 'distrust' THEN 1 ELSE 0 END) as distrust_votes,
+    calculate_user_trust_score(influencer_handle, influencer_platform) as user_trust_score,
+    MAX(created_at) as last_vote_at
+FROM influencer_votes
+GROUP BY influencer_handle, influencer_platform
+ORDER BY total_votes DESC;

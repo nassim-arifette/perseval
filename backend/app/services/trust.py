@@ -111,7 +111,45 @@ def combine_trust_score(
     followers_score: float,
     web_reputation_score: float,
     disclosure_score: float,
+    user_trust_score: Optional[float] = None,
 ) -> float:
+    """
+    Combine individual trust scores into overall trust score.
+
+    Default weights (without user votes):
+    - Message history: 30%
+    - Followers: 15%
+    - Web reputation: 40%
+    - Disclosure: 15%
+
+    With user votes (10% weight):
+    - Message history: 27%
+    - Followers: 13.5%
+    - Web reputation: 36%
+    - Disclosure: 13.5%
+    - User votes: 10%
+
+    Args:
+        message_history_score: Score from analyzing recent posts (0-1)
+        followers_score: Score from follower metrics (0-1)
+        web_reputation_score: Score from web research (0-1)
+        disclosure_score: Score from ad disclosure (0-1)
+        user_trust_score: Optional crowdsourced score from user votes (0-1)
+
+    Returns:
+        Combined trust score (0-1)
+    """
+    # If we have user votes, use adjusted weights that include 10% for user trust
+    if user_trust_score is not None:
+        return (
+            0.27 * message_history_score
+            + 0.135 * followers_score
+            + 0.36 * web_reputation_score
+            + 0.135 * disclosure_score
+            + 0.10 * user_trust_score
+        )
+
+    # Original weights without user votes
     return (
         0.3 * message_history_score
         + 0.15 * followers_score

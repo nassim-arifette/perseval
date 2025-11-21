@@ -75,6 +75,7 @@ ADMIN_API_KEY=your_secure_random_key_here
 4. Copy the entire SQL content
 5. Paste into Supabase SQL Editor
 6. Click "Run" to create all tables
+7. Still in the SQL Editor, apply every file inside `backend/sql/migrations` (from lowest number to highest). Each uses safe `IF NOT EXISTS` guards, so you can re-run them whenever new migrations are added.
 
 You should see these tables created:
 - `influencer_cache`
